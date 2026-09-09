@@ -49,6 +49,16 @@
         api_host: 'https://us.i.posthog.com',
         person_profiles: 'never',
         autocapture: false,
+        before_send: function (event) {
+          // PostHog fills $ip from the connection unless the event carries one.
+          // Null it here and disable the GeoIP lookup so no IP, city, postal
+          // code or lat/long is ever derived or stored for this page view.
+          if (event && event.properties) {
+            event.properties.$ip = null;
+            event.properties.$geoip_disable = true;
+          }
+          return event;
+        },
         disable_session_recording: true,
         respect_dnt: true
       });
@@ -128,7 +138,7 @@
       <span class="thumb t-story" aria-hidden="true">STORY</span>
       <div class="body">
         <h3 style="color:var(--ink)">story</h3>
-        <p class="dek">16 posts.</p>
+        <p class="dek">17 posts.</p>
         <div class="foot"><span class="more">View topic →</span></div>
       </div>
     </a>
@@ -168,25 +178,25 @@
     
     <a class="chip" href="/blog/tags/multi-agent/">Multi-Agent<span class="ct">85</span></a>
     
-    <a class="chip" href="/blog/tags/claude-code/">Claude Code<span class="ct">45</span></a>
+    <a class="chip" href="/blog/tags/claude-code/">Claude Code<span class="ct">44</span></a>
     
     <a class="chip" href="/blog/tags/internals/">Internals<span class="ct">26</span></a>
     
     <a class="chip" href="/blog/tags/guides/">Guides<span class="ct">23</span></a>
     
-    <a class="chip" href="/blog/tags/open-source/">Open Source<span class="ct">22</span></a>
+    <a class="chip" href="/blog/tags/open-source/">Open Source<span class="ct">23</span></a>
     
     <a class="chip" href="/blog/tags/orchestration/">Orchestration<span class="ct">19</span></a>
     
     <a class="chip" href="/blog/tags/concepts/">Concepts<span class="ct">18</span></a>
     
+    <a class="chip" href="/blog/tags/story/">Story<span class="ct">18</span></a>
+    
     <a class="chip" href="/blog/tags/comparisons/">Comparisons<span class="ct">17</span></a>
     
-    <a class="chip" href="/blog/tags/story/">Story<span class="ct">17</span></a>
+    <a class="chip" href="/blog/tags/release/">Release<span class="ct">14</span></a>
     
     <a class="chip" href="/blog/tags/local-first/">Local-First<span class="ct">13</span></a>
-    
-    <a class="chip" href="/blog/tags/release/">Release<span class="ct">13</span></a>
     
     <a class="chip" href="/blog/tags/automation/">Automation<span class="ct">12</span></a>
     
@@ -344,7 +354,7 @@
     
     <a class="chip" href="/blog/tags/geo/">GEO<span class="ct">1</span></a>
     
-    <a class="chip" href="/blog/tags/video/">Video<span class="ct">1</span></a>
+    <a class="chip" href="/blog/tags/non-technical/">Non-Technical<span class="ct">1</span></a>
     
     <a class="chip" href="/blog/tags/content/">Content<span class="ct">1</span></a>
     
@@ -425,6 +435,8 @@
     <a class="chip" href="/blog/tags/reddit/">Reddit<span class="ct">1</span></a>
     
     <a class="chip" href="/blog/tags/telemetry/">Telemetry<span class="ct">1</span></a>
+    
+    <a class="chip" href="/blog/tags/i18n/">i18n<span class="ct">1</span></a>
     
   </div>
   

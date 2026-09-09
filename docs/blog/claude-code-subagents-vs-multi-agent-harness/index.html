@@ -103,6 +103,16 @@
         api_host: 'https://us.i.posthog.com',
         person_profiles: 'never',
         autocapture: false,
+        before_send: function (event) {
+          // PostHog fills $ip from the connection unless the event carries one.
+          // Null it here and disable the GeoIP lookup so no IP, city, postal
+          // code or lat/long is ever derived or stored for this page view.
+          if (event && event.properties) {
+            event.properties.$ip = null;
+            event.properties.$geoip_disable = true;
+          }
+          return event;
+        },
         disable_session_recording: true,
         respect_dnt: true
       });
@@ -211,6 +221,7 @@ and escalates only the critical calls to you. The parent-as-bottleneck problem g
 </ul>
 <p>Put simply: subagents give one agent <em>helpers</em>; a harness gives you a <em>team</em>.</p>
 <h2 id="a-side-by-side" tabindex="-1">A side-by-side <a class="anchor" href="#a-side-by-side" aria-hidden="true">#</a></h2>
+<div class="table-scroll">
 <table>
 <thead>
 <tr>
@@ -252,6 +263,7 @@ and escalates only the critical calls to you. The parent-as-bottleneck problem g
 </tr>
 </tbody>
 </table>
+</div>
 <p>The table isn’t a scoreboard — it’s a map. Each column wins its own territory.</p>
 <figure class="fig fig-inline"><img src="/blog/assets/media/claude-code-subagents-vs-multi-agent-harness/note-2.png" alt="Hand-drawn sketch from “Claude Code Subagents vs a Multi-Agent Harness”" loading="lazy" decoding="async" /></figure>
 <h2 id="theyre-better-together" tabindex="-1">They’re better together <a class="anchor" href="#theyre-better-together" aria-hidden="true">#</a></h2>

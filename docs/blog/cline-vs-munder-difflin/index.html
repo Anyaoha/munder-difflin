@@ -104,6 +104,16 @@
         api_host: 'https://us.i.posthog.com',
         person_profiles: 'never',
         autocapture: false,
+        before_send: function (event) {
+          // PostHog fills $ip from the connection unless the event carries one.
+          // Null it here and disable the GeoIP lookup so no IP, city, postal
+          // code or lat/long is ever derived or stored for this page view.
+          if (event && event.properties) {
+            event.properties.$ip = null;
+            event.properties.$geoip_disable = true;
+          }
+          return event;
+        },
         disable_session_recording: true,
         respect_dnt: true
       });
@@ -219,6 +229,7 @@ several agents run at once.</li>
 not an editor extension’s.</p>
 <figure class="fig fig-inline"><img src="/blog/assets/media/cline-vs-munder-difflin/note-2.png" alt="Hand-drawn sketch from “Cline vs Munder Difflin: In-Editor Agent or Local Hive?”" loading="lazy" decoding="async" /></figure>
 <h2 id="how-to-choose" tabindex="-1">How to choose <a class="anchor" href="#how-to-choose" aria-hidden="true">#</a></h2>
+<div class="table-scroll">
 <table>
 <thead>
 <tr>
@@ -249,6 +260,7 @@ not an editor extension’s.</p>
 </tr>
 </tbody>
 </table>
+</div>
 <p>And honestly: they can coexist. Use Cline as your in-editor agent and Munder Difflin to orchestrate a
 hive for the bigger, parallel work. The layers don’t conflict. For a structured way to decide across
 the whole field, see <a href="/blog/how-to-choose-a-multi-agent-tool/">how to choose a multi-agent tool</a> and

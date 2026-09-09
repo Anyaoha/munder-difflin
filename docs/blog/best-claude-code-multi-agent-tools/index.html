@@ -103,6 +103,16 @@
         api_host: 'https://us.i.posthog.com',
         person_profiles: 'never',
         autocapture: false,
+        before_send: function (event) {
+          // PostHog fills $ip from the connection unless the event carries one.
+          // Null it here and disable the GeoIP lookup so no IP, city, postal
+          // code or lat/long is ever derived or stored for this page view.
+          if (event && event.properties) {
+            event.properties.$ip = null;
+            event.properties.$geoip_disable = true;
+          }
+          return event;
+        },
         disable_session_recording: true,
         respect_dnt: true
       });
@@ -188,6 +198,7 @@ harness</a> idea.</li>
 </ul>
 <p>Most tools live cleanly in one camp. Knowing which camp you need is most of the decision.</p>
 <h2 id="the-tools-at-a-glance" tabindex="-1">The tools, at a glance <a class="anchor" href="#the-tools-at-a-glance" aria-hidden="true">#</a></h2>
+<div class="table-scroll">
 <table>
 <thead>
 <tr>
@@ -242,6 +253,7 @@ harness</a> idea.</li>
 </tr>
 </tbody>
 </table>
+</div>
 <p>The single row that most separates the field is <strong>shared memory + orchestrator</strong>: that’s the jump
 from “running agents in parallel” to “running a team.”</p>
 <figure class="fig fig-inline"><img src="/blog/assets/media/best-claude-code-multi-agent-tools/note-1.png" alt="Hand-drawn sketch from “The Best Tools to Run Multiple Claude Code Agents (2026)”" loading="lazy" decoding="async" /></figure>

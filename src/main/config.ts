@@ -242,9 +242,11 @@ export interface HarnessConfig {
    *  $-cap; total = input + output + cacheRead + cacheCreation, summed across the
    *  floor (the biggest token spender is blamed). */
   costCapTokens?: number;
-  /** Per-agent total-token ceiling, keyed by agent id. When an agent's own total
-   *  tokens exceed its cap the breaker trips that agent alone (independent of the
-   *  floor budget). Set from each agent's card in the Command Center. */
+  /** Per-agent token ceiling, keyed by agent id. When an agent's own WORK tokens
+   *  (input + output + cacheCreation — cacheRead excluded, see breaker.ts #189)
+   *  exceed its cap the breaker trips that agent alone (independent of the floor
+   *  budget, which sums all kinds). Set from each agent's card in the Command
+   *  Center. */
   agentTokenCaps?: Record<string, number>;
   /** Agent ids whose automatic inbox/queue delivery is paused. Pending messages
    *  stay durable until the operator explicitly resumes delivery. */
@@ -621,10 +623,33 @@ function normalizeStoredHomes(cfg: HarnessConfig): HarnessConfig {
   return cfg;
 }
 
+/** Announces every saved setting, so a screen showing one can update.
+ *
+ *  Settings, Slack, voice and notifications each save by their own route, and
+ *  all of them end up writing the file below — so one subscription here covers
+ *  every setting rather than the ones anybody remembered to wire up. */
+type ConfigWriteListener = (next: HarnessConfig) => void;
+const configWriteListeners = new Set<ConfigWriteListener>();
+
+export function onConfigWritten(listener: ConfigWriteListener): () => void {
+  configWriteListeners.add(listener);
+  return () => { configWriteListeners.delete(listener); };
+}
+
 function persistConfig(next: HarnessConfig): HarnessConfig {
   const p = configPath();
   mkdirSync(dirname(p), { recursive: true });
   writeFileSync(p, JSON.stringify(next, null, 2), 'utf8');
+  // Saving one setting stores only that setting, so fill the rest back in first:
+  // subscribers must see the same complete config a read gives them, never a
+  // half-filled one. Skip the migration — it saves in its own right, and has
+  // already run against what this change was built on.
+  const view = normalizeStoredHomes(withTriggerDefaults({ ...DEFAULTS, ...next }));
+  // The change is already saved, so one failed subscriber must not fail the save
+  // for its caller, nor stop the subscribers after it.
+  for (const listener of configWriteListeners) {
+    try { listener(view); } catch { /* a broken listener is not a failed save */ }
+  }
   return next;
 }
 
@@ -693,9 +718,8 @@ export function setAgentTokenCap(agentId: unknown, tokenCap: unknown): HarnessCo
 /** Wipe the persisted config back to first-run defaults so the app boots into
  *  onboarding again. Used by the "reset & start over" flow. */
 export function resetConfig(): HarnessConfig {
-  const p = configPath();
-  mkdirSync(dirname(p), { recursive: true });
-  writeFileSync(p, JSON.stringify(DEFAULTS, null, 2), 'utf8');
+  // Saved like any other change, so a reset announces itself too.
+  persistConfig({ ...DEFAULTS });
   // Drop the migration latch too: the file on disk is back to `triggersMigratedV1:
   // false`, and a latch left set would keep the flag from ever being written again
   // in this process. The migration itself is a no-op on defaults either way.
@@ -703,8 +727,9 @@ export function resetConfig(): HarnessConfig {
   return withTriggerDefaults({ ...DEFAULTS });
 }
 
-/** Model ids by tier (Lane A #6.4). Kept in sync with AGENT_MODELS in
- *  src/renderer/src/store/config.ts. */
+/** Model ids by tier (Lane A #6.4). Kept in sync with the claude list in
+ *  src/shared/modelCatalog.json, which `agentModels()` in
+ *  src/renderer/src/store/config.ts reads. */
 const MODEL_GOD = 'claude-opus-4-8';                  // orchestration — highest capability
 const MODEL_WORKER = 'claude-sonnet-4-6';             // general execution
 const MODEL_HELPER = 'claude-haiku-4-5-20251001';     // narrow, cheap helpers
@@ -719,7 +744,7 @@ export interface RoleHint {
 
 /** Default model for an agent given its role (Lane A #6.4): Opus for the god,
  *  Haiku for narrow helpers (triage / routing / verification / formatting),
- *  Sonnet for general workers. Returns a model id (matching AGENT_MODELS) or
+ *  Sonnet for general workers. Returns a model id (matching the catalog) or
  *  undefined to fall back to the CLI default. This is only a DEFAULT — an
  *  explicit per-agent model selection always wins. */
 export function modelForRole(
@@ -757,6 +782,55 @@ export function ensureHarnessHome(path: string): { ok: boolean; error?: string }
   }
 }
 
+function ensureClaudeGlobalPermissions(home: string): void {
+  const dir = join(home, '.claude');
+  const p = join(dir, 'settings.json');
+  try {
+    let s: Record<string, unknown> = {};
+    if (existsSync(p)) {
+      const parsed: unknown = JSON.parse(readFileSync(p, 'utf8'));
+      if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return;
+      s = parsed as Record<string, unknown>;
+    }
+    if (s.skipDangerousModePermissionPrompt !== true || s.skipAutoPermissionPrompt !== true) {
+      s.skipDangerousModePermissionPrompt = true;
+      s.skipAutoPermissionPrompt = true;
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(p, JSON.stringify(s, null, 2), 'utf8');
+    }
+  } catch (error) {
+    console.warn(
+      `[config] Could not safely update Claude config at ${p}:`,
+      error instanceof Error ? error.message : String(error),
+    );
+  }
+}
+
+type ClaudeProjectConfig = Record<string, unknown> & { hasTrustDialogAccepted?: boolean };
+type ClaudeConfig = Record<string, unknown> & { projects?: Record<string, ClaudeProjectConfig> };
+
+function ensureClaudeProjectTrust(home: string, cwd: string): void {
+  const p = join(home, '.claude.json');
+  try {
+    let c: ClaudeConfig = {};
+    if (existsSync(p)) {
+      const parsed: unknown = JSON.parse(readFileSync(p, 'utf8'));
+      if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return;
+      c = parsed as ClaudeConfig;
+    }
+    if (c.projects?.[cwd]?.hasTrustDialogAccepted !== true) {
+      c.projects = c.projects ?? {};
+      c.projects[cwd] = { ...(c.projects[cwd] ?? {}), hasTrustDialogAccepted: true };
+      writeFileSync(p, JSON.stringify(c, null, 2), 'utf8');
+    }
+  } catch (error) {
+    console.warn(
+      `[config] Could not safely update Claude config at ${p}:`,
+      error instanceof Error ? error.message : String(error),
+    );
+  }
+}
+
 /** Idempotently pre-accept Claude Code's first-run prompts so agents spawned with
  *  `--permission-mode bypassPermissions` start cleanly. Without this, a fresh
  *  install shows an interactive "WARNING: Bypass Permissions mode … 1. No, exit /
@@ -768,38 +842,17 @@ export function ensureHarnessHome(path: string): { ok: boolean; error?: string }
  *   1. `~/.claude/settings.json` → `skipDangerousModePermissionPrompt` +
  *      `skipAutoPermissionPrompt` — these gate the bypass-mode warning (global).
  *   2. `~/.claude.json` → `projects[cwd].hasTrustDialogAccepted` — the per-folder
- *      "do you trust the files in this folder?" dialog. */
+ *      "do you trust the files in this folder?" dialog.
+ *
+ *  Each file is an independent best-effort boundary: unsafe existing contents
+ *  are preserved without preventing the other file from being handled safely. */
 export function ensureClaudePermissionsAccepted(cwd?: string): void {
-  const home = homedir();
+  let home: string;
+  try { home = homedir(); } catch { return; }
   if (!home) return;
-  // 1) Global bypass-mode warning gate.
-  try {
-    const dir = join(home, '.claude');
-    const p = join(dir, 'settings.json');
-    let s: Record<string, unknown> = {};
-    if (existsSync(p)) {
-      try { s = JSON.parse(readFileSync(p, 'utf8')) as Record<string, unknown>; } catch { s = {}; }
-    }
-    if (s.skipDangerousModePermissionPrompt !== true || s.skipAutoPermissionPrompt !== true) {
-      s.skipDangerousModePermissionPrompt = true;
-      s.skipAutoPermissionPrompt = true;
-      mkdirSync(dir, { recursive: true });
-      writeFileSync(p, JSON.stringify(s, null, 2), 'utf8');
-    }
-  } catch { /* best-effort; never block a spawn */ }
-  // 2) Per-folder trust dialog gate (only when this cwd isn't already trusted).
+
+  ensureClaudeGlobalPermissions(home);
   if (cwd) {
-    try {
-      const p = join(home, '.claude.json');
-      let c: { projects?: Record<string, { hasTrustDialogAccepted?: boolean }> } = {};
-      if (existsSync(p)) {
-        try { c = JSON.parse(readFileSync(p, 'utf8')); } catch { c = {}; }
-      }
-      if (c.projects?.[cwd]?.hasTrustDialogAccepted !== true) {
-        c.projects = c.projects ?? {};
-        c.projects[cwd] = { ...(c.projects[cwd] ?? {}), hasTrustDialogAccepted: true };
-        writeFileSync(p, JSON.stringify(c, null, 2), 'utf8');
-      }
-    } catch { /* best-effort */ }
+    ensureClaudeProjectTrust(home, cwd);
   }
 }

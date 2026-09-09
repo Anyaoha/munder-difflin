@@ -107,6 +107,16 @@
         api_host: 'https://us.i.posthog.com',
         person_profiles: 'never',
         autocapture: false,
+        before_send: function (event) {
+          // PostHog fills $ip from the connection unless the event carries one.
+          // Null it here and disable the GeoIP lookup so no IP, city, postal
+          // code or lat/long is ever derived or stored for this page view.
+          if (event && event.properties) {
+            event.properties.$ip = null;
+            event.properties.$geoip_disable = true;
+          }
+          return event;
+        },
         disable_session_recording: true,
         respect_dnt: true
       });
@@ -188,6 +198,7 @@
 <p>v0.3.3 did add a built-in Monaco IDE — file tree, tabs, side-by-side diffs vs HEAD — but let’s be honest about what it’s for: it’s a <strong>review surface for what your agents changed</strong>, not a place you live. Orca’s editing experience is deeper. Munder Difflin’s bet is that you’ll spend less time in an editor at all, because the office handles the routing, memory, and follow-through that would otherwise pull you back to the keyboard.</p>
 <figure class="fig fig-inline"><img src="/blog/assets/media/orca-vs-munder-difflin/note-2.png" alt="Hand-drawn sketch from “Orca vs Munder Difflin: Agent IDE or Agent Office?”" loading="lazy" decoding="async" /></figure>
 <h2 id="the-boundary-drawn-plainly" tabindex="-1">The boundary, drawn plainly <a class="anchor" href="#the-boundary-drawn-plainly" aria-hidden="true">#</a></h2>
+<div class="table-scroll">
 <table>
 <thead>
 <tr>
@@ -244,6 +255,7 @@
 </tr>
 </tbody>
 </table>
+</div>
 <h2 id="when-to-pick-which" tabindex="-1">When to pick which <a class="anchor" href="#when-to-pick-which" aria-hidden="true">#</a></h2>
 <p><strong>Pick Orca</strong> if your bottleneck is interactive throughput: you’re at the keyboard, you want several agents on one problem, and you want first-class tools for comparing, annotating, and shipping their diffs — plus a phone app to check in from the couch.</p>
 <p><strong>Pick Munder Difflin</strong> if your bottleneck is <em>you being required at all</em>: you want work triggered from Slack or a schedule, routed by an orchestrator, informed by shared memory, and bounded by budgets and approval gates while it runs overnight.</p>

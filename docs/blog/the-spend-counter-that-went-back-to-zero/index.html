@@ -105,6 +105,16 @@
         api_host: 'https://us.i.posthog.com',
         person_profiles: 'never',
         autocapture: false,
+        before_send: function (event) {
+          // PostHog fills $ip from the connection unless the event carries one.
+          // Null it here and disable the GeoIP lookup so no IP, city, postal
+          // code or lat/long is ever derived or stored for this page view.
+          if (event && event.properties) {
+            event.properties.$ip = null;
+            event.properties.$geoip_disable = true;
+          }
+          return event;
+        },
         disable_session_recording: true,
         respect_dnt: true
       });
@@ -379,7 +389,7 @@ manage a number you are not actually reading.</p>
 
   <footer class="post-foot wrap"><div class="prevnext">
       <a class="pn prev" href="/blog/agents-ran-our-launch-week-analytics/"><span class="k">← Older</span><span class="t">Our Agents Ran Our Launch-Week Analytics</span></a>
-      <span></span>
+      <a class="pn next" href="/blog/launching-munder-difflin-v0-4-6/"><span class="k">Newer →</span><span class="t">Launching Munder Difflin v0.4.6: It Speaks Chinese and Arabic Now</span></a>
     </div>
     <section class="related">
       <h2>Related in Internals</h2>

@@ -105,6 +105,16 @@
         api_host: 'https://us.i.posthog.com',
         person_profiles: 'never',
         autocapture: false,
+        before_send: function (event) {
+          // PostHog fills $ip from the connection unless the event carries one.
+          // Null it here and disable the GeoIP lookup so no IP, city, postal
+          // code or lat/long is ever derived or stored for this page view.
+          if (event && event.properties) {
+            event.properties.$ip = null;
+            event.properties.$geoip_disable = true;
+          }
+          return event;
+        },
         disable_session_recording: true,
         respect_dnt: true
       });
@@ -163,6 +173,7 @@
 <p>That means you can run an entire office of agents on models anyone can download. There are two honest ways to do it, and they trade off differently. This guide walks both, then shows the exact wiring for each engine — current as of <strong>v0.4.4</strong>. (For the why-bother, see <a href="/blog/why-local-first-matters-for-ai-agents/">why local-first matters for AI agents</a> and <a href="/blog/why-cli-agents-are-powerful/">why CLI agents are so powerful</a>.)</p>
 <h2 id="two-routes-your-hardware-or-someone-elses" tabindex="-1">Two routes: your hardware, or someone else’s <a class="anchor" href="#two-routes-your-hardware-or-someone-elses" aria-hidden="true">#</a></h2>
 <p>“Open source models” is one phrase covering two very different setups. Pick by what you’re optimizing for.</p>
+<div class="table-scroll">
 <table>
 <thead>
 <tr>
@@ -204,6 +215,7 @@
 </tr>
 </tbody>
 </table>
+</div>
 <p>You don’t have to choose globally — Munder Difflin sets the engine and model <em>per agent</em>. A common pattern: a strong provider-hosted model in the orchestrator seat, and cheap local workers for the routine majority. That’s exactly the <a href="/blog/do-more-with-less-model-routing/">capability-routing</a> idea, now with open weights on both ends.</p>
 <p>And route three, for the least wiring of all: <strong>hire the model-maker’s own CLI.</strong> The Qwen and Kimi engines are first-class in the Add-Agent dialog — their vendor CLIs, their auth, no slug to compose — and Qwen3 and Kimi K2.6 are open-weight families. If all you want is “an open-model worker on my floor, now,” that’s one dropdown.</p>
 <h2 id="how-the-three-byok-engines-name-a-model" tabindex="-1">How the three BYOK engines name a model <a class="anchor" href="#how-the-three-byok-engines-name-a-model" aria-hidden="true">#</a></h2>
@@ -213,6 +225,7 @@
 <li><strong>A custom OpenAI-compatible provider</strong> you define once (a <code>base_url</code> + key block) for any host that isn’t built in — Together, Fireworks, DeepInfra, Novita, <a href="http://Z.ai">Z.ai</a>, Moonshot. Then the slug is <code>&lt;your-name&gt;/&lt;model-id&gt;</code>.</li>
 </ul>
 <p>The <em>local</em> route differs slightly by engine — same id, different prefix and wiring:</p>
+<div class="table-scroll">
 <table>
 <thead>
 <tr>
@@ -239,6 +252,7 @@
 </tr>
 </tbody>
 </table>
+</div>
 <p>Default endpoints are the usual ones: Ollama <code>http://localhost:11434/v1</code>, LM Studio <code>http://127.0.0.1:1234/v1</code>, vLLM whatever you exposed (often <code>:8000/v1</code>). You set these in the app — no shell exports required.</p>
 <figure class="fig fig-inline"><img src="/blog/assets/media/run-munder-difflin-on-open-models/note-1.png" alt="Hand-drawn sketch from “Run Munder Difflin on Open-Source Models — Fully Local or via a Third-Party Provider”" loading="lazy" decoding="async" /><figcaption>Same model id everywhere — only the prefix changes: local/ on OpenCode, ollama/ on Crush, provider/ for BYOK.</figcaption></figure>
 <h2 id="path-a-fully-local-ollama-lm-studio-vllm" tabindex="-1">Path A — fully local (Ollama / LM Studio / vLLM) <a class="anchor" href="#path-a-fully-local-ollama-lm-studio-vllm" aria-hidden="true">#</a></h2>
@@ -252,6 +266,7 @@ ollama serve                   <span class="token comment"># exposes the OpenAI-
 <p><strong>2. Point the engine at it.</strong> Open <strong>Settings → AI Engines</strong>, find the engine you’ll use (<strong>OpenCode</strong> or <strong>Crush</strong>), and set its <strong>local base-URL</strong> field to your endpoint — e.g. <code>http://localhost:11434/v1</code> for Ollama. The harness uses it to inject the right provider config when it spawns the agent. No API key needed for local.</p>
 <p><strong>3. Hire an agent on that model.</strong> In the <strong>Add-Agent</strong> modal, choose the engine, then pick the local model. The picker offers the open-model quick-picks; the slug it sends is <code>local/gpt-oss:20b</code> on OpenCode, or <code>ollama/gpt-oss:20b</code> on Crush (keep the colon in the tag). That agent now runs fully on your hardware.</p>
 <p>Which local model? Match it to your machine. These picks are from the project’s open-model catalog, by RAM tier:</p>
+<div class="table-scroll">
 <table>
 <thead>
 <tr>
@@ -312,12 +327,14 @@ ollama serve                   <span class="token comment"># exposes the OpenAI-
 </tr>
 </tbody>
 </table>
+</div>
 <p>A note on what <em>won’t</em> fit: the headline frontier open models — DeepSeek-V4, Kimi K2.6, GLM-5.2, Qwen3-235B — are server-class. The Ollama tags exist, but no consumer Mac holds them. For those, you want Path B. (Choosing a local model by RAM is the whole subject of the companion <a href="/blog/run-munder-difflin-on-a-mac-mini/">Mac Mini setup guide</a>.)</p>
 <h2 id="path-b-a-third-party-oss-provider-byok" tabindex="-1">Path B — a third-party OSS provider (BYOK) <a class="anchor" href="#path-b-a-third-party-oss-provider-byok" aria-hidden="true">#</a></h2>
 <p>Same open weights, hosted on someone else’s GPUs, billed to your own key. This is how you reach the big models, and it’s a two-field setup.</p>
 <p><strong>1. Get a key.</strong> Sign up with a provider and copy an API key. <a href="https://openrouter.ai">OpenRouter</a> is the easiest start — one key, the widest catalog. <a href="https://groq.com">Groq</a> is the fastest for the models it carries. Together, Fireworks, and DeepInfra host the heavyweights.</p>
 <p><strong>2. Paste it into the app.</strong> In <strong>Settings → AI Engines</strong>, enter the key in the matching field. Keys are stored <strong>write-only through the broker</strong> — the renderer can set a key but never read it back; only the main process injects it as the right env var (<code>OPENROUTER_API_KEY</code>, <code>GROQ_API_KEY</code>, …) when an agent spawns, and only for the provider that agent actually uses. Nothing lands in plaintext config.</p>
 <p><strong>3. Pick a model.</strong> In Add-Agent, select the engine and a provider-hosted model. The slug carries the provider prefix — e.g. <code>openrouter/deepseek/deepseek-v4-flash</code> or <code>groq/openai/gpt-oss-120b</code>. The recommended BYOK quick-picks:</p>
+<div class="table-scroll">
 <table>
 <thead>
 <tr>
@@ -372,6 +389,7 @@ ollama serve                   <span class="token comment"># exposes the OpenAI-
 </tr>
 </tbody>
 </table>
+</div>
 <p>Prefer a model maker’s own API? Those work too: DeepSeek (<code>deepseek/deepseek-v4-flash</code>, <code>DEEPSEEK_API_KEY</code>), Mistral (<code>mistral/...</code>, <code>MISTRAL_API_KEY</code>), <a href="http://Z.ai">Z.ai</a> for GLM, Moonshot for Kimi. On Groq, stick to gpt-oss and <code>llama-3.3-70b-versatile</code>. The full slug-by-slug table, with citations, lives in the project’s open-model catalog (the single source of truth this post and the Mac Mini guide both cite).</p>
 <p>One honest fix from v0.4.4 worth knowing: OpenCode used to preselect a BYOK slug <strong>and silently fall back</strong> to a different model when the key was absent — while every surface kept reporting the model it had asked for. That’s gone. If a key is missing now, you find out; you never unknowingly run a model you didn’t pick.</p>
 <figure class="fig fig-inline"><img src="/blog/assets/media/run-munder-difflin-on-open-models/note-2.png" alt="Hand-drawn sketch from “Run Munder Difflin on Open-Source Models — Fully Local or via a Third-Party Provider”" loading="lazy" decoding="async" /><figcaption>One key, the whole frontier: paste it once in Settings, and the write-only broker injects it per spawn — never into plaintext config.</figcaption></figure>

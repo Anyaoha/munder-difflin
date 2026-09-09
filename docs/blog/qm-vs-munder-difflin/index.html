@@ -107,6 +107,16 @@
         api_host: 'https://us.i.posthog.com',
         person_profiles: 'never',
         autocapture: false,
+        before_send: function (event) {
+          // PostHog fills $ip from the connection unless the event carries one.
+          // Null it here and disable the GeoIP lookup so no IP, city, postal
+          // code or lat/long is ever derived or stored for this page view.
+          if (event && event.properties) {
+            event.properties.$ip = null;
+            event.properties.$geoip_disable = true;
+          }
+          return event;
+        },
         disable_session_recording: true,
         respect_dnt: true
       });
@@ -186,6 +196,7 @@ Grok, Kimi, and more, riding the subscriptions you already pay for. The floor is
 (yes, it looks like The Office), a GOD orchestrator routes work, agents share long-term
 memory, and background work runs as <strong>scheduled missions</strong> with Slack and webhook triggers.</p>
 <p>If you map the concepts across, most of qm’s vocabulary has a Munder Difflin counterpart:</p>
+<div class="table-scroll">
 <table>
 <thead>
 <tr>
@@ -227,6 +238,7 @@ memory, and background work runs as <strong>scheduled missions</strong> with Sla
 </tr>
 </tbody>
 </table>
+</div>
 <figure class="fig fig-inline"><img src="/blog/assets/media/qm-vs-munder-difflin/note-1.png" alt="Hand-drawn sketch from “qm vs Munder Difflin: YC's Multiplayer Harness or a Local-First Agent Office?”" loading="lazy" decoding="async" /></figure>
 <h2 id="what-each-has-that-the-other-doesnt" tabindex="-1">What each has that the other doesn’t <a class="anchor" href="#what-each-has-that-the-other-doesnt" aria-hidden="true">#</a></h2>
 <p><strong>qm’s edge is multiplayer.</strong> One shared harness, unified identity, org-level admin,

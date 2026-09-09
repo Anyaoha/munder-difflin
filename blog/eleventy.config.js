@@ -31,6 +31,12 @@ export default function (eleventyConfig) {
       slugify,
     }
   );
+  // A markdown table of npm commands is wider than a phone. Left bare it widens
+  // the whole document, which drags the sticky masthead off-screen with it.
+  // Wrapping every table in its own scroll box keeps the overflow local.
+  md.renderer.rules.table_open = () => '<div class="table-scroll">\n<table>\n';
+  md.renderer.rules.table_close = () => '</table>\n</div>\n';
+
   eleventyConfig.setLibrary("md", md);
 
   // ---- plugins ----

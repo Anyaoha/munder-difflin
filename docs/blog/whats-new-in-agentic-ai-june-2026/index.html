@@ -103,6 +103,16 @@
         api_host: 'https://us.i.posthog.com',
         person_profiles: 'never',
         autocapture: false,
+        before_send: function (event) {
+          // PostHog fills $ip from the connection unless the event carries one.
+          // Null it here and disable the GeoIP lookup so no IP, city, postal
+          // code or lat/long is ever derived or stored for this page view.
+          if (event && event.properties) {
+            event.properties.$ip = null;
+            event.properties.$geoip_disable = true;
+          }
+          return event;
+        },
         disable_session_recording: true,
         respect_dnt: true
       });
@@ -174,6 +184,7 @@ weekly and vendors revise details. Where a figure comes from a secondary aggrega
 primary vendor, we say so. Munder Difflin is our own project; we’ve tried to report the rest straight.</p>
 </blockquote>
 <h2 id="at-a-glance" tabindex="-1">At a glance <a class="anchor" href="#at-a-glance" aria-hidden="true">#</a></h2>
+<div class="table-scroll">
 <table>
 <thead>
 <tr>
@@ -210,6 +221,7 @@ primary vendor, we say so. Munder Difflin is our own project; we’ve tried to r
 </tr>
 </tbody>
 </table>
+</div>
 <h2 id="models-learned-to-act-not-just-answer" tabindex="-1">Models learned to act, not just answer <a class="anchor" href="#models-learned-to-act-not-just-answer" aria-hidden="true">#</a></h2>
 <p>The headline release is <a href="https://www.anthropic.com/claude/opus">Anthropic’s Claude Opus 4.8</a>, out
 <a href="https://techcrunch.com/2026/05/28/anthropic-releases-opus-4-8-with-new-dynamic-workflow-tool/">May 28, 2026 — 41 days after Opus 4.7</a>.

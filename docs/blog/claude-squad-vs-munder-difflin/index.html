@@ -103,6 +103,16 @@
         api_host: 'https://us.i.posthog.com',
         person_profiles: 'never',
         autocapture: false,
+        before_send: function (event) {
+          // PostHog fills $ip from the connection unless the event carries one.
+          // Null it here and disable the GeoIP lookup so no IP, city, postal
+          // code or lat/long is ever derived or stored for this page view.
+          if (event && event.properties) {
+            event.properties.$ip = null;
+            event.properties.$geoip_disable = true;
+          }
+          return event;
+        },
         disable_session_recording: true,
         respect_dnt: true
       });
@@ -171,6 +181,7 @@ head-to-head: where each is genuinely better, and how to decide.</p>
 <p>Everything below is detail on that distinction.</p>
 <figure class="fig fig-inline"><img src="/blog/assets/media/claude-squad-vs-munder-difflin/note-1.png" alt="Hand-drawn sketch from “Claude Squad vs Munder Difflin: Which Should You Use?”" loading="lazy" decoding="async" /></figure>
 <h2 id="feature-comparison" tabindex="-1">Feature comparison <a class="anchor" href="#feature-comparison" aria-hidden="true">#</a></h2>
+<div class="table-scroll">
 <table>
 <thead>
 <tr>
@@ -232,6 +243,7 @@ head-to-head: where each is genuinely better, and how to decide.</p>
 </tr>
 </tbody>
 </table>
+</div>
 <p>No row makes one “win” outright — they reflect two philosophies. Claude Squad optimizes for <em>less</em>;
 Munder Difflin optimizes for <em>coordination</em>.</p>
 <h2 id="where-claude-squad-is-the-better-pick" tabindex="-1">Where Claude Squad is the better pick <a class="anchor" href="#where-claude-squad-is-the-better-pick" aria-hidden="true">#</a></h2>

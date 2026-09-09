@@ -6,15 +6,15 @@ import {
   readlinkSync, symlinkSync
 } from 'node:fs';
 import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
-import { join, resolve, sep, basename, dirname } from 'node:path';
+import { join, resolve, sep, basename, dirname, isAbsolute } from 'node:path';
 import { homedir } from 'node:os';
 import { request as httpsRequest } from 'node:https';
 import { PtyManager, type SpawnOptions } from './pty';
-import { resolveCommand as resolveCliCommand } from './shellEnv';
+import { resolveCommand as resolveCliCommand, isSafeCommandName } from './shellEnv';
 import { initAutoUpdater, abortPendingRestart } from './updater';
 import { RealtimeFloorWatcher } from './realtimeFloorWatcher';
 import {
-  readConfig, writeConfig, setAgentTokenCap, resetConfig, ensureHarnessHome, ensureClaudePermissionsAccepted,
+  readConfig, writeConfig, setAgentTokenCap, resetConfig, onConfigWritten, ensureHarnessHome, ensureClaudePermissionsAccepted,
   modelForRole, OPS_STANDUP_MISSION, HEARTBEAT_MISSION, COMPACT_MAINTENANCE_MISSION, type HarnessConfig, type ScheduledMission
 } from './config';
 import { listDir, readFileText, readFileBinary, writeFileText, statAbs, expandTilde } from './fs';
@@ -24,6 +24,7 @@ import {
   addWorktree, removeWorktree, worktreeHasUnintegratedWork, worktreeIsGcSafe,
   getLogGraph, getCommitFiles, getFileAtRev, compareRefs, listWorktrees, checkoutRef
 } from './git';
+import { linkWorktreeDeps, unlinkWorktreeDeps } from './worktreeDeps';
 import { HiveManager, type AgentMeta, type HiveMessage, type HiveTask } from './hive';
 import { HookServer } from './hooks';
 import { CircuitBreaker, type BreakerInput } from './breaker';
@@ -55,7 +56,8 @@ import { initCompletionWatcher } from './realtimeCompletionWatcher';
 import type { TaskCard, InboxMessage } from './realtimeCompletionWatcher';
 import { TelemetryCollector } from './telemetry';
 import { CostLedgerTotals } from './costLifetime';
-import { analytics } from './analytics';
+import { analytics, isRendererMessageSurface } from './analytics';
+import type { SpawnFailReason } from './analytics';
 import { IntegrationBroker } from './integrationBroker';
 import * as integrations from './integrations';
 import { validateBaseUrl, buildAuthHeaders, resolveUpstreamUrl, secretRefFor, INTEGRATION_TEMPLATES } from '../shared/integrations';
@@ -64,6 +66,7 @@ import { buildWorkerLaunch } from './workerLaunch';
 import { ControlRegistry } from './control';
 import { WorkerWakeWatchdog, type WorkerWakeFacts } from './workerWake';
 import { inboxNudgeText } from '../shared/hiveNudge';
+import { resolveGodName } from '../shared/godIdentity';
 import { fetchHireManifest, readHireManifestFiles } from './hire';
 import { parseHireDeepLink, type HireManifest } from '../shared/hire';
 import { ClosingTimeController } from './closingTime';
@@ -81,6 +84,7 @@ import { detectNodeVersion, nodeIsUsable, resolveNodeInstaller } from './nodeIns
 import { toolCatalog, type ToolStatus } from '../shared/toolCatalog';
 import { listLocalSkills, loadCatalog, installSkill, uninstallSkill, type LocalSkill } from './skills';
 import { loadHero } from './hero';
+import { loadModelCatalog } from './modelCatalog';
 import {
   CODEX_REMOTE_SOCKET_RELATIVE,
   codexRemoteAliasPath,
@@ -228,7 +232,7 @@ const ptyToAgent = new Map<string, string>();
  *  in this PTY; when it exits cleanly the exit handler re-runs the SAME spawn (with
  *  install disabled) so the freshly-installed CLI launches in the SAME pty/window —
  *  no user click. Cleared the moment it's consumed, so it can never loop installs. */
-const pendingInstallRelaunch = new Map<string, { opts: AgentSpawnOptions; owner: Electron.WebContents | null; bin: string }>();
+const pendingInstallRelaunch = new Map<string, { opts: AgentSpawnOptions; owner: Electron.WebContents | null; bin: string; rung: string }>();
 const hive = new HiveManager(
   () => readConfig().harnessHome,
   (channel, payload) => {
@@ -448,6 +452,8 @@ function teardownPty(id: string): void {
     try { workerWake.forget(agentId, id); } catch { /* best-effort */ }
     // Drop breaker state so a dead agent can't leak/zombie a tripped level.
     try { breaker.forget(agentId); } catch { /* best-effort */ }
+    // A replacement using this id needs a new usage counter, not the dead PTY's.
+    try { telemetry.forgetAgent(agentId); } catch { /* best-effort */ }
     // W1 — kill this agent's proxy-bridge sidecar (qwen), if any, so a dead
     // PTY never leaves an orphan loopback listener. No-op for non-proxy agents.
     try { hive.stopProxyBridge(agentId); } catch (e) { console.error('[hive] stopProxyBridge failed:', e); }
@@ -512,6 +518,8 @@ function informGod(subject: string, body: string, slack?: { channel: string; thr
  *  (fail-safe — never auto-discard possibly-valuable work). */
 async function finalizeWorkerWorktree(wtPath: string, origCwd: string, worker: WorkerRec): Promise<void> {
   try {
+    const deps = await unlinkWorktreeDeps(origCwd, wtPath);
+    if (!deps.ok) console.error('[worktree] dependency unlink failed:', deps.error);
     const work = await worktreeHasUnintegratedWork(wtPath, worker.baseBranch);
     if (work.keep) {
       console.warn(`[worker] PRESERVING worktree with unintegrated work: ${wtPath} (${work.detail})`);
@@ -575,11 +583,31 @@ function removeWorkerScratch(workerId: string): void {
 // SAME pty/window (no user click). Provider-agnostic. Idempotent by construction: the
 // relaunch carries `noAutoInstall`, so the installer can never fire (let alone loop) a
 // second time — a binary that's somehow still missing just spawns and exits normally.
-ptyManager.setExitHandler((id, exitCode) => {
+ptyManager.setExitHandler((id, exitCode, info) => {
+  // Record an ABNORMAL death before teardown — teardownPty drops the
+  // pty->agent mapping, so after it runs we can no longer say WHOSE process
+  // died. Only abnormal exits are recorded (recordAgentExit returns early on a
+  // clean one), so this adds no noise to a normal archive.
+  try {
+    const dyingAgent = ptyToAgent.get(id);
+    if (dyingAgent) {
+      hive.recordAgentExit(dyingAgent, {
+        exitCode,
+        signal: info?.signal,
+        tail: info?.tail,
+        command: info?.command
+      });
+    }
+  } catch (e) { console.error('[pty] recordAgentExit failed:', e); }
+
   const pending = pendingInstallRelaunch.get(id);
   if (pending) {
     pendingInstallRelaunch.delete(id);
+    // Activation funnel: did the auto-installer actually complete? A non-zero exit
+    // is the Linux-installer-cannot-finish-unattended signal that used to be silent.
+    const provider = pending.opts.provider ?? inferAgentProvider(pending.opts.command, undefined);
     if (exitCode === 0) {
+      analytics.track('agent_install_finished', { provider, rung: pending.rung, outcome: 'agent_launched' });
       // Re-arm the renderer's pooled terminal (clear the "process exited" line +
       // re-enable input) so the freshly-spawned CLI paints onto a clean, typeable
       // grid, then re-run the normal spawn — which now finds the installed binary.
@@ -589,6 +617,7 @@ ptyManager.setExitHandler((id, exitCode) => {
       return; // an install PTY has no agent/worktree to tear down
     }
     // Non-zero exit = install failed; leave its honest manual-fix message on screen.
+    analytics.track('agent_install_finished', { provider, rung: pending.rung, outcome: 'install_failed' });
   }
   teardownPty(id);
 });
@@ -1024,6 +1053,47 @@ function lastCoordinationAt(agentId: string): number {
   return Math.max(...times);
 }
 
+/** Newest mtime of the agent's OWN WORKING DIRECTORY — the work
+ *  `lastCoordinationAt` cannot see. 0 when there is nothing to read.
+ *
+ *  Provider neutral by construction: `cwd` is the agent's registry entry, the
+ *  same field every supported CLI is spawned into, and none of the paths below
+ *  is specific to any one of them. An agent whose `cwd` is not a git checkout
+ *  simply falls back to the directory's own mtime; an agent with no `cwd` at
+ *  all returns 0 and behaves exactly as it does today.
+ *
+ *  Cheap by construction: a handful of `stat` calls on fixed paths, never a
+ *  directory walk. This runs for every agent on every beat, and a working
+ *  directory can hold hundreds of thousands of files. Git is what makes it
+ *  affordable — each of these is rewritten by ordinary work:
+ *
+ *    cwd                  a file or directory added or removed at the top level
+ *    .git/index           any `git add`, `git status`, `git checkout`
+ *    .git/logs/HEAD       the reflog: commit, checkout, reset, merge, rebase
+ *    .git/FETCH_HEAD      fetch and pull
+ *    .git/packed-refs     and `.git/refs/remotes`: a push updating a tracking ref
+ *
+ *  Its honest limit: editing a file deep in the tree while running no git
+ *  command moves none of these. That case is already covered by the breaker's
+ *  own distinct-tool clock, so the two signals are complementary rather than
+ *  redundant — this one exists for the window where tool events do not reach
+ *  the breaker but the work is unmistakably real.
+ */
+function lastWorkAt(agentId: string): number {
+  const cwd = hive.registry().agents[agentId]?.cwd;
+  if (!cwd) return 0;
+  const times: number[] = [0];
+  const pushMtime = (p: string): void => { try { times.push(statSync(p).mtimeMs); } catch { /* missing */ } };
+  pushMtime(cwd);
+  const git = join(cwd, '.git');
+  pushMtime(join(git, 'index'));
+  pushMtime(join(git, 'logs', 'HEAD'));
+  pushMtime(join(git, 'FETCH_HEAD'));
+  pushMtime(join(git, 'refs', 'remotes'));
+  pushMtime(join(git, 'packed-refs'));
+  return Math.max(...times);
+}
+
 /** PTY id owning a given agent id, or undefined. */
 function ptyForAgent(agentId: string): string | undefined {
   for (const [ptyId, a] of ptyToAgent) if (a === agentId) return ptyId;
@@ -1164,7 +1234,10 @@ function runBreakerBeat(progressWindowMs: number): void {
     inputs.push({
       agentId: id,
       sample,
-      progressing: now - lastCoordinationAt(id) < progressWindowMs || now - lastSpanAt < progressWindowMs
+      progressing: now - lastCoordinationAt(id) < progressWindowMs || now - lastSpanAt < progressWindowMs,
+      // Work, as distinct from coordination. The breaker decides what to do
+      // with it; the beat only reports it.
+      lastWorkAt: lastWorkAt(id)
     });
   }
   for (const d of breaker.tick(inputs, now)) {
@@ -2499,6 +2572,16 @@ function findCodexHomeForSession(sessionId: string, siblingsRoot: string): strin
  *  ephemeral-worker watcher. */
 type AgentSpawnOptions = SpawnOptions & { hive?: AgentMeta; isolate?: boolean; resume?: boolean; requireResume?: boolean; resumeSessionId?: string; provider?: AgentProvider; noAutoInstall?: boolean };
 
+/** Map a `ptyManager.spawn` failure string to the closed `agent_spawn_failed.reason`
+ *  enum (analytics.ts). The two known strings come from PtyManager.spawn; anything
+ *  else is a generic `spawn_error`. The raw message never leaves the machine — only
+ *  the enum value does, per TELEMETRY.md. */
+function spawnFailReason(error?: string): SpawnFailReason {
+  if (error?.startsWith('cwd does not exist')) return 'cwd_missing';
+  if (error?.includes('already exists')) return 'already_running';
+  return 'spawn_error';
+}
+
 ipcMain.handle('pty:spawn', async (evt, opts: AgentSpawnOptions) => {
   if (!opts || typeof opts.id !== 'string' || typeof opts.cwd !== 'string' || typeof opts.command !== 'string') {
     return { ok: false, error: 'invalid SpawnOptions' };
@@ -2534,6 +2617,11 @@ async function spawnAgentCore(opts: AgentSpawnOptions, owner: Electron.WebConten
   const claudeProvider = isClaudeProvider(provider);
   opts.provider = provider;
   if (opts.hive) opts.hive = { ...opts.hive, provider };
+  // Activation-funnel entry (v0.4.6): every spawn REQUEST, so (attempted − spawned)
+  // measures the fallout the whole rebuild exists to see. Gated on !noAutoInstall so
+  // the missing-CLI relaunch (the only re-entry, index.ts install-exit handler) does
+  // NOT double-count a single user attempt — it is the SAME attempt continuing.
+  if (!opts.noAutoInstall) analytics.track('agent_spawn_attempted', { provider });
   // ── Missing engine CLI → run its installer visibly (pre-spawn) ───────────────
   // If the agent's engine binary (claude/codex/…) isn't installed, spawning it
   // just dies with "— process exited (code 1) —" and the user has no idea why.
@@ -2587,7 +2675,18 @@ async function spawnAgentCore(opts: AgentSpawnOptions, owner: Electron.WebConten
       // binary and die with the bare "process exited (code 1)" this whole path exists
       // to replace.
       if (res.ok && rung.command) {
-        pendingInstallRelaunch.set(opts.id, { opts, owner, bin });
+        pendingInstallRelaunch.set(opts.id, { opts, owner, bin, rung: rung.kind });
+        // The auto-installer PTY is running; agent_install_finished on its exit says
+        // whether it actually produced an agent (rung is non-manual here by construction).
+        analytics.track('agent_install_started', { provider, rung: rung.kind });
+      } else if (res.ok) {
+        // Manual rung: the PTY only printed a hint (no installer to run, no relaunch
+        // armed), so no agent will start. This is the Mode 2 case that used to send
+        // NOTHING — an absent engine with no unattended install path.
+        analytics.track('agent_spawn_failed', { provider, reason: 'cli_missing' });
+      } else {
+        // The install PTY itself failed to spawn (cwd gone, id clash, throw).
+        analytics.track('agent_spawn_failed', { provider, reason: spawnFailReason(res.error) });
       }
       syncKeepAwake();
       return res;
@@ -2622,6 +2721,8 @@ async function spawnAgentCore(opts: AgentSpawnOptions, owner: Electron.WebConten
           opts.cwd = wtPath;
           worktreePaths.set(opts.id, wtPath);
           worktreeOrigins.set(opts.id, origCwd);
+          const deps = await linkWorktreeDeps(origCwd, wtPath);
+          if (!deps.ok) console.error('[worktree] dependency link failed:', deps.error);
         } else {
           console.error('[worktree] addWorktree failed:', wt.error);
         }
@@ -2663,11 +2764,18 @@ async function spawnAgentCore(opts: AgentSpawnOptions, owner: Electron.WebConten
           theme: readConfig().terminalTheme ?? 'light',
           // W3 — default-MCP consent state + the bundled skills source dir.
           mcpDefaults: readConfig().mcpDefaults,
-          skillsDir: skillsResourceDir()
+          skillsDir: skillsResourceDir(),
+          // The shared palace is mutated by the agent's own `mempalace` calls, so
+          // the OS sandbox must let it through (empty when memory is off).
+          extraWritableDirs: [memory.env().MEMPALACE_PALACE_PATH].filter((p): p is string => !!p)
         }
       );
       opts.args = [...(opts.args ?? []), ...inj.args];
       seedPrompt = inj.seedPrompt;
+      // A degraded spawn (proxy bridge never bound) is told to the user the same
+      // way breaker escalations are: a native toast, gated on the notifications
+      // setting. The hive already logged it and pushed hive:degraded to the floor.
+      if (inj.degraded) breakerToast('Agent running degraded', inj.degraded);
       // Point the agent's mempalace CLI at the shared palace + the `kg` CLI at the
       // enterprise knowledge store (both no-ops / empty when their flags are off).
       opts.env = { ...(opts.env ?? {}), ...inj.env, ...memory.env(), ...knowledge.env() };
@@ -2887,6 +2995,7 @@ async function spawnAgentCore(opts: AgentSpawnOptions, owner: Electron.WebConten
   }
   const res = ptyManager.spawn(opts, owner);
   if (res.ok) analytics.track('agent_spawned', { provider });
+  else analytics.track('agent_spawn_failed', { provider, reason: spawnFailReason(res.error) });
   syncKeepAwake(); // arm the power-save blocker while ≥1 agent PTY is alive (#18)
   // Hand the resolved worktree path back to the renderer so it can persist it on
   // the agent (only set when isolation actually provisioned a worktree above).
@@ -2919,6 +3028,25 @@ ipcMain.handle('pty:kill', (_evt, id: string) => {
   return res;
 });
 ipcMain.handle('pty:list', () => ptyManager.list());
+
+// ─── IPC: analytics (the ONE renderer-facing seam) ──────────────────────────
+/** Count one human-sent message (TELEMETRY.md → `message_sent`). A COUNT, and
+ *  nothing else: this channel takes no text, no length and no id, so there is
+ *  no shape in which message content could cross it.
+ *
+ *  This is the only analytics event the renderer can cause. It exists because
+ *  two of the four send surfaces — a line typed into the agent's terminal, and
+ *  the queue composer — are submits main cannot observe: the `pty:write` handler
+ *  above fires on EVERY KEYSTROKE, so counting there would produce a keystroke
+ *  meter, not a message count. `steer` and `hive` are counted at their own IPC
+ *  handlers in this file and are rejected here (isRendererMessageSurface) so
+ *  they can never be counted twice. The event name is fixed here, not passed
+ *  in: the renderer chooses a surface, never an event. */
+ipcMain.handle('analytics:messageSent', (_evt, surface: unknown) => {
+  if (!isRendererMessageSurface(surface)) return { ok: false };
+  analytics.trackMessageSent(surface);
+  return { ok: true };
+});
 
 // Resolve a pasted Claude session id to the cwd it originally ran in, so the Add
 // Agent dialog can auto-fill the folder for a resume (#2 zero-step resume). Reads
@@ -3062,9 +3190,16 @@ ipcMain.handle('config:update', (_evt, patch: Partial<HarnessConfig>) => {
   // relaunch, so bootstrap here on the null → set transition. Gated on the
   // transition so ordinary config writes never re-enter it.
   const hiveWasEnabled = hive.enabled();
+  const wasOnboarded = readConfig().onboardingComplete;
   const next = writeConfig(patch);
   // Live opt-in/out from Settings → Privacy (TELEMETRY.md).
   if (typeof patch?.telemetryEnabled === 'boolean') analytics.setEnabled(patch.telemetryEnabled);
+  // Activation funnel (v0.4.6): onboarding just finished (false → true) — the top of
+  // the launch → first-agent funnel. `provider` is the engine chosen in the wizard.
+  // Fired here (main), not in the renderer, so it rides the same allowlist as the rest.
+  if (!wasOnboarded && next.onboardingComplete) {
+    analytics.track('onboarding_completed', { provider: next.godProvider ?? 'claude' });
+  }
   // Keep the hive's mirror of the spawn gate current. The queue itself reads
   // config per tick so it gates immediately; this is for the PROMPT, which is
   // built per spawn, so flipping the toggle reaches god the next time he starts.
@@ -3310,6 +3445,7 @@ ipcMain.handle('git:checkout', async (_evt, cwd: unknown, ref: unknown, detach: 
 // instead of flashing an empty floor and then filling in.
 // (`roster` itself is constructed earlier so HookServer can read standing goals.)
 ipcMain.on('roster:readSync', (evt) => { evt.returnValue = roster.read(); });
+ipcMain.on('config:homeSync', (evt) => { evt.returnValue = readConfig().harnessHome ?? null; });
 ipcMain.handle('roster:read', () => roster.read());
 ipcMain.handle('roster:write', (_evt, snap: unknown) => roster.write(snap));
 
@@ -3340,7 +3476,13 @@ ipcMain.handle('hive:messages', (_evt, opts: unknown) =>
 );
 ipcMain.handle('hive:send', (_evt, partial: Partial<HiveMessage>, from: unknown) => {
   if (!hive.enabled()) return { ok: false, error: 'hive disabled (no harnessHome)' };
-  const msg = hive.send(partial ?? {}, typeof from === 'string' ? from : 'system');
+  const sender = typeof from === 'string' ? from : 'system';
+  const msg = hive.send(partial ?? {}, sender);
+  // Count only what a PERSON sent. Every renderer surface that dispatches on a
+  // human's behalf passes 'human' (Command Center dispatch, thread replies, ASK
+  // ME answers); agent-to-agent traffic passes the agent id and would swamp the
+  // number. Counted AFTER the send so a rejected message is never counted.
+  if (sender === 'human') analytics.trackMessageSent('hive');
   return { ok: true, message: msg };
 });
 ipcMain.handle('hive:addTask', (_evt, task: unknown) => {
@@ -3381,6 +3523,14 @@ ipcMain.handle('hive:patchAgentRole', (_evt, id: unknown, role: unknown) => {
  *  release. Validated in shared/heroPayload before it reaches the renderer. */
 ipcMain.handle('hero:payload', async (_evt, force: unknown) =>
   loadHero(join(app.getPath('userData'), 'hero.json'), { force: force === true }));
+
+// ─── IPC: model catalog (remote data, cached) ───────────────────────────────
+/** The agent model presets, fetched from docs/model-catalog.json on main so a
+ *  new model reaches installed copies without a release. Validated in
+ *  shared/modelCatalogPayload; a null catalog means "keep the baked one". */
+const MODEL_CATALOG_CACHE = () => join(app.getPath('userData'), 'model-catalog.json');
+ipcMain.handle('models:catalog', async (_evt, force: unknown) =>
+  loadModelCatalog(MODEL_CATALOG_CACHE(), { force: force === true }));
 
 // ─── IPC: skills (installed locally, and the browsable catalog) ─────────────
 /** Skills the CLIs on this machine can already use. Scans the registered repos
@@ -3675,6 +3825,7 @@ ipcMain.handle('app:resetAll', () => {
   try { reflector.stop(); } catch (e) { console.error('[reset] reflector.stop:', e); }
   try { persist.close(); } catch (e) { console.error('[reset] persist.close:', e); }
   try { ptyManager.killAll(); } catch (e) { console.error('[reset] killAll:', e); }
+  try { hive.removeExposedCodexData(); } catch (e) { console.error('[reset] removeExposedCodexData:', e); }
   // Erase the hive (Michael's + every agent's memory, inboxes, tasks, board,
   // git history) and the semantic-memory palace. Only these harness-created
   // subdirs are removed — never the user's whole harnessHome folder.
@@ -3809,6 +3960,10 @@ ipcMain.handle('control:gateTool', (_evt, agentId: unknown, tool: unknown, on: u
 ipcMain.handle('control:steer', (_evt, agentId: unknown, text: unknown) => {
   if (typeof agentId !== 'string' || typeof text !== 'string') return null;
   control.steer(agentId, text);
+  // A steer typed into the control strip is a human message. Counted HERE, at
+  // the IPC seam, and deliberately not inside control.steer(): closingTime and
+  // the voice action layer call that directly, and neither is a person typing.
+  analytics.trackMessageSent('steer');
   return control.snapshot(agentId);
 });
 ipcMain.handle('control:halt', (_evt, agentId: unknown) => {
@@ -3890,9 +4045,11 @@ ipcMain.handle('app:setNotifications', (_evt, val) => writeConfig({ notification
 // ─── IPC: onboarding reliability — open Settings deep-link + login-item toggle ─
 /** Open a System Settings deep-link (or https URL) in the OS default handler.
  *  Restricted to Settings panes / https so the renderer can't shell arbitrary
- *  schemes. Used by the onboarding "Permissions & reliability" step. */
+ *  schemes. macOS uses `x-apple.systempreferences:`, Windows uses `ms-settings:`
+ *  (Linux has no universal settings URI, so the renderer never sends one there).
+ *  Used by the onboarding "Permissions & reliability" step. */
 ipcMain.handle('app:openExternal', async (_evt, url: unknown) => {
-  if (typeof url !== 'string' || !/^(x-apple\.systempreferences:|https:\/\/)/.test(url)) {
+  if (typeof url !== 'string' || !/^(x-apple\.systempreferences:|ms-settings:|https:\/\/)/.test(url)) {
     return { ok: false, error: 'blocked url' };
   }
   await shell.openExternal(url);
@@ -3907,7 +4064,24 @@ ipcMain.handle('app:setLoginItem', (_evt, enabled: unknown) => {
 
 // ─── IPC: Slack integration ─────────────────────────────────────────────────
 ipcMain.handle('slack:start', () => startSlackServer());
-ipcMain.handle('slack:stop', () => { stopSlackServer(); return { ok: true }; });
+/** Stop must survive a restart. Boot re-arms from `slackEnabled`, so stopping
+ *  without clearing it silently brought the server back on the next launch —
+ *  the user pressed Stop and Slack was live again.
+ *
+ *  Persist BEFORE tearing down. If the write throws (read-only volume, ENOSPC)
+ *  the server is still up and the UI stays truthful; the other order leaves a
+ *  dead server that still reads as Connected with the flag set, which is this
+ *  same bug again with no error to show for it.
+ *
+ *  Only this handler clears the flag. changeHome / quit / reset call
+ *  `stopSlackServer()` directly and must not: they are lifecycle, not a user
+ *  turning the integration off. (Start persists the flag from the renderer, in
+ *  `SettingsModal.startSlack`, not here.) */
+ipcMain.handle('slack:stop', () => {
+  writeConfig({ slackEnabled: false });
+  stopSlackServer();
+  return { ok: true };
+});
 /** Current connection state + last Request URL — lets Settings hydrate the
  *  "Connected" badge and re-show the persisted tunnel URL on reopen. */
 ipcMain.handle('slack:status', () => ({ running: slackServer != null, url: lastSlackUrl }));
@@ -4261,14 +4435,23 @@ const completionWatcher = initCompletionWatcher({
       return [];
     }
   },
-  onNotify: (evt) => { try { if (Notification.isSupported()) new Notification({ title: 'Michael', body: evt.summary }).show(); } catch { /* best-effort */ } }
+  onNotify: (evt) => {
+    try {
+      if (!Notification.isSupported()) return;
+      const reg = hive.registry();
+      const title = resolveGodName(reg.agents[reg.godId ?? 'god']?.name);
+      new Notification({ title, body: evt.summary }).show();
+    } catch { /* best-effort */ }
+  }
 });
 
 registerRealtimeActionIpc({
   hiveEnabled: () => hive.enabled(),
   hiveSend: (partial, from) => hive.send(partial, from),
   hiveTasks: () => hive.tasks(),
-  hiveWriteTasks: (tasks) => hive.writeTasks(tasks),
+  hiveAddTask: (task) => hive.addTask(task as HiveTask),
+  hivePatchTask: (id, patch) => hive.patchTask(id, patch as Partial<Omit<HiveTask, 'id'>>),
+  hiveDeleteTask: (id) => hive.deleteTask(id),
   hiveRegistry: () => hive.registry(),
   hiveLog: (event) => hive.appendLog(event),
   controlPause: (id, on) => control.pause(id, on),
@@ -4516,6 +4699,16 @@ async function processSpawnRequest(filePath: string): Promise<void> {
     autoMode: !!cfgSpawn.autoMode
   });
   const bin = launch.bin;
+  // Validate the executable name on the spawn path. A spawn-request file is
+  // untrusted input (authored by the orchestrator, reachable by anything that can
+  // write HIVE_ROOT/spawn-requests), so the bin must be a plain command token or
+  // an absolute path — never a string a downstream shell `which`/`where` could
+  // reinterpret. Rejected here, before any resolution; the resolver guards behind
+  // it validate the same thing in depth.
+  if (!isSafeCommandName(bin) && !isAbsolute(bin)) {
+    fail(`refusing spawn: engine command "${bin}" is not a plain command name or an absolute path`);
+    return;
+  }
   // Missing-CLI → FAIL FAST. A headless worker has no human to watch an installer,
   // so we never run the cc49e1e install banner here — we reject and tell god.
   if (!ptyManager.isCommandAvailable(bin)) { fail(`engine CLI "${bin}" is not installed`); return; }
@@ -4639,6 +4832,8 @@ async function gcPreservedWorktrees(): Promise<void> {
         continue;
       }
       // (b) Still on disk → reclaim ONLY when provably integrated + clean.
+      const deps = await unlinkWorktreeDeps(e.origCwd, e.wtPath);
+      if (!deps.ok) { console.error('[worker gc] dependency unlink failed (keeping):', deps.error); continue; }
       let safe: { gc: boolean; detail: string };
       try { safe = await worktreeIsGcSafe(e.wtPath, e.baseBranch); }
       catch (err) { console.error('[worker gc] gc-safe check threw (keeping):', err); continue; }
@@ -4957,7 +5152,7 @@ function runWorkerWakeBeat(): void {
       isGod: agentId === reg.godId,
       ptyId,
       lastOutputAt: ptyManager.lastOutputAt(ptyId) ?? 0,
-      inboxCount: hive.inbox(agentId).length,
+      inboxIds: hive.inbox(agentId).map((message) => message.id).filter(Boolean),
       autoDeliveryPaused: snap.autoDeliveryPaused,
       paused: snap.paused,
       halted: snap.halted
@@ -5091,6 +5286,12 @@ app.whenReady().then(() => {
     enabled: readConfig().telemetryEnabled !== false
   });
 
+  // Warm the model catalog cache before any picker opens. The renderer reads
+  // the same cache over IPC on load; doing the network hop here means the file
+  // is already fresh on disk by the time a modal is opened, and a failure is
+  // silent by construction (the baked catalog is the floor).
+  void loadModelCatalog(MODEL_CATALOG_CACHE()).catch(() => { /* never fatal */ });
+
   // A cold-start deep link (Windows/Linux) rides in on OUR argv.
   const startupHireLink = process.argv.find((a) => a.startsWith('munderdifflin://'));
   if (startupHireLink) void handleHireLink(startupHireLink);
@@ -5158,6 +5359,15 @@ app.on('before-quit', (e) => {
   if (mainWindow) {
     mainWindow.focus();
     mainWindow.webContents.send('app:closeRequested', { ptyCount: count });
+  }
+});
+
+// Every window loads the config once at start-up, so tell them all when a
+// setting is saved — a floor left out would keep showing what it opened with.
+onConfigWritten((config) => {
+  for (const w of allWindows) {
+    if (w.isDestroyed() || w.webContents.isDestroyed()) continue;
+    w.webContents.send('config:changed', config);
   }
 });
 

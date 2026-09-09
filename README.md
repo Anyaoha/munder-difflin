@@ -1,10 +1,17 @@
 <div align="center">
 
-<img src="./docs/logo.png" alt="Munder Difflin — agent harness to run an office of your clones" width="340">
+<img src="./docs/logo.png" alt="Munder Difflin — agent harness to run an office of your clones" width="180">
 
 # Munder Difflin
 
 ### Agent harness to run an office of your clones
+
+<p>
+  <a href="https://trendshift.io/repositories/46562" target="_blank" rel="noopener noreferrer"><img alt="GitHub Trending — #1 Repository of the Day" src="./docs/badge-github-trending.png" width="250" height="54"></a>
+  <a href="https://www.producthunt.com/products/munder-difflin?embed=true&utm_source=badge-top-post-badge&utm_medium=badge&utm_campaign=badge-munder-difflin" target="_blank" rel="noopener noreferrer"><img alt="Munder Difflin — #5 Product of the Day on Product Hunt" src="https://api.producthunt.com/widgets/embed-image/v1/top-post-badge.svg?post_id=1221363&theme=light&period=daily" width="250" height="54"></a>
+</p>
+
+<img src="./docs/media/floor.png" alt="The Munder Difflin office floor: agents at desks working in parallel, with the Command Center and a live agent terminal on the right" width="1240">
 
 **Free, open source and performant** — a multi-agent harness that works with the
 subscriptions you already pay for, on their hourly limits. It turns the terminal coding CLI
@@ -23,23 +30,27 @@ visualized as avatars at work on a shared office floor.
 
 <p>
   <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-F4D35E.svg?style=flat-square&labelColor=6E1423"></a>
-  <a href="./CHANGELOG.md"><img alt="Version: 0.4.5" src="https://img.shields.io/badge/version-0.4.5-F4D35E.svg?style=flat-square&labelColor=6E1423"></a>
-  <img alt="Status: prototype" src="https://img.shields.io/badge/status-working%20prototype-F4F1EA.svg?style=flat-square&labelColor=6E1423">
+  <a href="./CHANGELOG.md"><img alt="Version: 0.4.6" src="https://img.shields.io/badge/version-0.4.6-F4D35E.svg?style=flat-square&labelColor=6E1423"></a>
+  <a href="https://github.com/chaitanyagiri/munder-difflin/releases"><img alt="Downloads across all releases" src="https://img.shields.io/github/downloads/chaitanyagiri/munder-difflin/total?style=flat-square&label=downloads&color=F4D35E&labelColor=6E1423"></a>
+  <img alt="Status: pre-release" src="https://img.shields.io/badge/status-pre--release-F4F1EA.svg?style=flat-square&labelColor=6E1423">
   <img alt="Platform: macOS | Windows | Linux" src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-F4F1EA.svg?style=flat-square&labelColor=6E1423">
   <a href="./CONTRIBUTING.md"><img alt="PRs welcome" src="https://img.shields.io/badge/PRs-welcome-F4D35E.svg?style=flat-square&labelColor=6E1423"></a>
+  <a href="https://munderdiffl.in/blog/"><img alt="Blog" src="https://img.shields.io/badge/blog-guides%20%26%20postmortems-F4D35E.svg?style=flat-square&labelColor=6E1423"></a>
   <a href="https://discord.gg/SEDzP5ZPk5"><img alt="Discord" src="https://img.shields.io/badge/Discord-join%20the%20office-F4D35E.svg?style=flat-square&labelColor=6E1423"></a>
 </p>
 
 <br>
 
-<img src="./docs/media/og.png" alt="Munder Difflin — A hive of agents that message, route, and remember" width="1240">
-
-<br>
-
 <!-- Inline player renders on github.com (raw URL required; relative paths only link). -->
-<video src="https://github.com/chaitanyagiri/munder-difflin/raw/main/docs/media/hero.mp4" poster="https://github.com/chaitanyagiri/munder-difflin/raw/main/docs/media/og.png" controls muted loop playsinline width="820">
+<video src="https://github.com/chaitanyagiri/munder-difflin/raw/main/docs/media/hero.mp4" controls muted loop playsinline width="820">
   <a href="https://github.com/chaitanyagiri/munder-difflin/raw/main/docs/media/hero.mp4">▶ Watch the floor — Munder Difflin running a hive of Claude Code agents</a>
 </video>
+
+<br><br>
+
+**[⬇ Download for macOS, Windows or Linux](https://github.com/chaitanyagiri/munder-difflin/releases/latest)**
+
+<sub>macOS builds are signed and notarized. You do not need to build from source to use it.</sub>
 
 </div>
 
@@ -55,18 +66,41 @@ visualized as avatars at work on a shared office floor.
 
 ## Contents
 
+- [Supported agents](#supported-agents)
 - [What it is](#what-it-is)
 - [How it works](#how-it-works)
 - [Features](#features)
 - [Getting started](#getting-started)
-- [Architecture](#architecture)
-- [Project structure](#project-structure)
-- [Design system](#design-system)
+- [Architecture & project structure](./docs/ARCHITECTURE.md)
 - [Roadmap](#roadmap)
 - [Contributing](#contributing)
 - [Telemetry](#telemetry)
 - [License](#license)
 - [Acknowledgements](#acknowledgements)
+
+## Supported agents
+
+**Bring the CLI you already pay for.** Every one of these runs as a real process in its own
+terminal, with your existing subscription and its hourly limits. If it runs in a terminal, it
+can run here.
+
+<p>
+  <a href="https://docs.claude.com/en/docs/claude-code"><kbd>Claude Code</kbd></a>
+  <a href="https://github.com/openai/codex"><kbd>Codex · GPT</kbd></a>
+  <a href="https://x.ai/cli"><kbd>Grok · xAI</kbd></a>
+  <a href="https://www.kimi.com/code"><kbd>Kimi Code</kbd></a>
+  <a href="https://github.com/google-gemini/gemini-cli"><kbd>Gemini CLI</kbd></a>
+  <a href="https://antigravity.google/docs/cli-overview"><kbd>Antigravity · Gemini</kbd></a>
+  <a href="https://github.com/QwenLM/qwen-code"><kbd>Qwen</kbd></a>
+  <a href="https://opencode.ai/docs"><kbd>OpenCode</kbd></a>
+  <a href="https://github.com/charmbracelet/crush"><kbd>Crush · Charm</kbd></a>
+  <a href="https://pi.dev/docs/latest"><kbd>Pi</kbd></a>
+  <a href="https://docs.github.com/copilot/concepts/agents/about-copilot-cli"><kbd>GitHub Copilot</kbd></a>
+  <a href="https://cursor.com/docs/cli/install"><kbd>Cursor</kbd></a>
+  <kbd>+ any custom command</kbd>
+</p>
+
+Plus **bring your own keys** and **local models** through Ollama, LM Studio or vLLM.
 
 ## What it is
 
@@ -119,6 +153,88 @@ terminal/event plane, and [`DESIGN.md`](./DESIGN.md) for the visual system.
 
 ## Features
 
+<table>
+<tr>
+<td width="50%" valign="middle">
+
+### Talk to one agent, not twelve
+
+Michael is your clone and the only agent you brief. He assigns the work, routes the traffic, and
+escalates the few things that actually need you.
+
+</td>
+<td width="50%">
+  <a href="https://github.com/chaitanyagiri/munder-difflin/raw/main/docs/media/demo/orchestrator.mp4"><img src="./docs/media/demo/orchestrator-poster.jpg" alt="Briefing Michael, the orchestrator agent, from the Command Center" width="100%"></a>
+</td>
+</tr>
+<tr>
+<td width="50%" valign="middle">
+
+### Hire an agent in a few clicks
+
+Pick the CLI, the model and the autonomy, give it a desk, and it starts working. Import a
+ready made role from the [Agent Gallery](https://munderdiffl.in/hires/) if you would rather not
+start from scratch.
+
+</td>
+<td width="50%">
+  <img src="./docs/screenshots/add-agent.png" alt="The add agent dialog: choosing a provider, model and role" width="100%">
+</td>
+</tr>
+<tr>
+<td width="50%" valign="middle">
+
+### Memory that survives the session
+
+Every agent keeps markdown memory that is mined into a shared, searchable palace. Close the app,
+come back tomorrow, and they still know what they learned.
+
+</td>
+<td width="50%">
+  <img src="./docs/screenshots/memory.png" alt="Searching the shared memory palace across every agent" width="100%">
+</td>
+</tr>
+<tr>
+<td width="50%" valign="middle">
+
+### Autonomy with a leash
+
+Set how far each agent may go on its own. Spend, scope and destructive operations come back to
+you, and a circuit breaker steers, constrains, then stops anything that loops or runs away.
+
+</td>
+<td width="50%">
+  <img src="./docs/screenshots/autonomy.png" alt="Per agent autonomy and approval settings" width="100%">
+</td>
+</tr>
+<tr>
+<td width="50%" valign="middle">
+
+### Watch the whole floor work
+
+Agents walk to stations as they work and envelopes fly desk to desk when they message each other.
+Click any desk to read that terminal live, and type straight back into it.
+
+</td>
+<td width="50%">
+  <a href="https://github.com/chaitanyagiri/munder-difflin/raw/main/docs/media/demo/agents.mp4"><img src="./docs/media/demo/agents-poster.jpg" alt="Agents working in parallel on the office floor" width="100%"></a>
+</td>
+</tr>
+<tr>
+<td width="50%" valign="middle">
+
+### Set up once
+
+The onboarding wizard checks what you already have, and offers to install what is missing rather
+than sending you to a docs page.
+
+</td>
+<td width="50%">
+  <a href="https://github.com/chaitanyagiri/munder-difflin/raw/main/docs/media/demo/setup.mp4"><img src="./docs/media/demo/setup-poster.jpg" alt="The first run setup wizard" width="100%"></a>
+</td>
+</tr>
+</table>
+
 **The floor**
 - **Every terminal is a real agent.** Claude Code, Antigravity (Gemini), OpenAI Codex, xAI Grok, Kimi Code, Gemini CLI, Qwen, OpenCode, Crush, pi.dev, GitHub Copilot CLI, Cursor, or a custom command — each in its own `node-pty` PTY, rendered with xterm.js.
 - **Every agent is an avatar.** A Pixi.js office floor where agents walk to stations, envelopes fly desk to desk, and avatar state reflects real work.
@@ -144,21 +260,30 @@ terminal/event plane, and [`DESIGN.md`](./DESIGN.md) for the visual system.
 - **Slack & webhooks** — message a channel or POST a webhook; Michael can spawn an ephemeral worker, reply in-thread, and tear it down.
 - **Shareable hires + Agent Gallery** — import a role from a `munderdifflin://hire` link; import only pre-fills the form, a human still spawns it. Browse roles at the [Agent Gallery](https://munderdiffl.in/hires/).
 - **BYOK keys + local LLMs** — per-provider keys in a write-only secret broker, plus Ollama / LM Studio / vLLM base URLs. Guides: [open models](https://munderdiffl.in/blog/run-munder-difflin-on-open-models/) · [Mac Mini](https://munderdiffl.in/blog/run-munder-difflin-on-a-mac-mini/).
-- **Updates in one click** — the title-bar badge fetches the build for your machine and tells you how to install it, and it reads `latest` once a check confirms you are current. The first run afterwards opens that release's notes as a designed page rather than a version number. Background auto-update stays in Settings.
+- **Updates in one click**: the title-bar badge runs the real update. It downloads the build for your machine, then restarts and installs it, and it reads `latest` once a check confirms you are current. A manual download is the fallback for when the updater cannot fetch the build itself. The first run afterwards opens that release's notes as a designed page rather than a version number.
+- **Your language**: English, Simplified Chinese and Arabic, with right to left layout for Arabic. English is the default and nothing changes until you pick another one in Settings. The app does not read your OS locale. All three app fonts ship inside the bundle, so nothing is fetched at boot.
 - **Prerequisites** — one Settings page showing which supporting tools (uv, git, Node, MemPalace, each agent CLI) you have, what each is for, and a button that asks Michael to install what is missing.
 
 > [!NOTE]
-> **Status: v0.4.5, the release that fixes three things you trusted and were quietly wrong.**
-> Cost reporting reset its counter on every app restart while the session id stayed the same, so
-> the floor under reported what you had actually spent. It is now folded from the ledger, with a
-> separate session figure kept alongside. Semantic memory never worked on Apple Silicon: CoreML
-> overflowed the quantized embedding graph, every vector came back NaN, and every upsert was
-> rejected. Embeddings are pinned to CPU on macOS. And agents did not reliably reach each other,
-> so mail could sit in an inbox nobody woke up for. There is now an inbox wake watchdog, no more
-> stale nudges, and mail to a missing inbox is bounced and logged instead of dropped. Also in this
-> release: triggers that run on weekdays at a time of day, clickable paths in every terminal, one
-> editor instead of two, one click updates, and a renderer inside Chromium's sandbox.
-> 23 community pull requests landed.
+> **Status: v0.4.6, the release where the app stops assuming everyone reads English left to right.**
+> The interface now runs in Simplified Chinese and Arabic, with right to left support. English
+> stays the default and nothing changes until you pick a language in Settings, under General; the
+> app never reads your operating system locale. All three app fonts now ship inside the bundle
+> instead of loading from Google, which is blocked in mainland China and was breaking the interface
+> for exactly the people the Chinese translation was for. An input method Enter no longer fires a
+> send, a search or a rename while a candidate word is still being composed.
+> Every string is translated, with nothing falling back to English, and the terminals read right to
+> left. Some screens still need their padding and icons mirrored, and that is the next piece of
+> work. No Arabic reader has reviewed the wording yet.
+> Also in this release: the update badge runs the real download and restart instead of handing you
+> a disk image, the update check can no longer spin forever, Settings persists through one Save
+> button, the model lists moved into a checked in catalog, and the ASK ME card renders markdown.
+> On the security side: the name of the CLI an agent launches is validated before it is resolved
+> against your PATH, the OS sandbox stays on in auto mode, and analytics stopped sending IP and
+> derived location. Telemetry now counts the messages you send to an agent, a count and nothing
+> else, with no text, length or hash of the body in any shape.
+> 16 community pull requests from 13 contributors landed in this release, one of them (#213)
+> re-implemented rather than merged.
 > **If you're on 0.3.8, update:** that build's usage-limit guard never released the agents it held,
 > and it has been removed entirely.
 > macOS (signed & notarized), Windows, and Linux builds are on the
@@ -167,6 +292,20 @@ terminal/event plane, and [`DESIGN.md`](./DESIGN.md) for the visual system.
 <div align="right">(<a href="#munder-difflin">↑ back to top</a>)</div>
 
 ## Getting started
+
+### Download the app
+
+**Most people want this one.** Signed and notarized macOS builds, plus Windows and Linux, are on
+the [latest release](https://github.com/chaitanyagiri/munder-difflin/releases/latest). Install it,
+open it, and the wizard takes you the rest of the way. You do not need Node, a toolchain, or this
+repository.
+
+You do still need at least one agent CLI on your machine, and the app can install missing ones for
+you from **Settings → Prerequisites**.
+
+### Build from source
+
+Everything below is for contributors and for people who want to run an unreleased build.
 
 ### Prerequisites
 
@@ -210,97 +349,28 @@ npm run typecheck  # type-check the node (main/preload) and web (renderer) proje
 
 ## Architecture
 
-Two data planes feed one renderer:
+Two data planes feed one renderer: a **terminal plane** that owns the PTYs, the filesystem and git,
+and an **event plane** that runs the hive, the hook server and the router. The renderer talks to
+both only through a typed bridge.
 
-```
-┌───────────────────────────────────────────────────────────────┐
-│                     Electron Renderer (React)                  │
-│   ┌──────────────────┐    ┌──────────────────────────────┐    │
-│   │ Office Floor      │    │ Terminal + Command Bar       │    │
-│   │ (Pixi.js)        │    │ Files + Git tabs (xterm.js)  │    │
-│   └─────────▲────────┘    └────────────▲─────────────────┘    │
-│             │ avatar state             │ pty bytes / fs / git  │
-└─────────────┼──────────────────────────┼───────────────────────┘
-              │ IPC (contextBridge: window.cth)
-       ┌──────┴──────────┐        ┌──────┴─────────────┐
-       │  Event Plane    │        │  Terminal Plane    │
-       │  hooks / hive   │        │  node-pty PTYs     │
-       │  router + GOD   │        │  + fs + git        │
-       └────────▲────────┘        └──────▲─────────────┘
-                │ hook payloads          │ stdin / stdout
-                └─────────┬──────────────┘
-                   ┌──────┴──────────────┐
-                   │ claude / agy / codex│
-                   └─────────────────────┘
-```
-
-- **Terminal plane.** The main process owns a `PtyManager` that spawns each agent as a `node-pty`
-  process and streams output over per-id IPC (`pty:data:<id>`). The renderer talks only through a
-  typed `window.cth` bridge ([`src/preload/index.ts`](./src/preload/index.ts)), which also exposes
-  sandboxed filesystem and git helpers.
-- **Hive / event plane.** `hive.ts` is the on-disk multi-agent layer; `hooks.ts` runs the hook
-  server that provider bridges POST lifecycle payloads to (`cth-hook` for Claude Code, `agy-hook`
-  for Antigravity). `memory.ts` wraps the semantic memory CLI. The router delivers messages, drains
-  provider outboxes, the GOD agent adjudicates, and idle/inbox wakeups keep workers draining mail.
-
-## Project structure
-
-```
-src/
-  main/                      Electron main process (Node)
-    index.ts                 window, IPC handlers, quit guard
-    pty.ts                   node-pty manager (spawn/write/resize/kill/stream)
-    hive.ts                  on-disk multi-agent layer (memory, mailboxes, router)
-    hooks.ts                 hook server + provider hook shims (`cth-hook`, `agy-hook`)
-    memory.ts                semantic memory layer (CLI wrapper, degrade-to-noop)
-    config.ts                harness config persistence + home setup
-    transcript.ts            reads ~/.claude/projects/ JSONL transcripts for real token/cost telemetry
-    telemetry.ts             live OTel collector + usage/cost feed for observability
-    usage.ts / pricing.ts    UsageProvider seam + per-model cost attribution
-    breaker.ts / control.ts  cost/runaway circuit breaker (steer/constrain/stop) + HITL gate / steer / stop
-    reflect.ts               MemoryReflector — memory condensation
-    db.ts                    SQLite durable store (window bounds + history) + durable cost ledger
-    github.ts                GitHub issue + CI run ingestion via the gh CLI
-    shellEnv.ts              resolve PATH and shell env for child processes
-    fs.ts / git.ts           sandboxed filesystem + git bridges
-  preload/                   contextBridge → typed window.cth API
-  renderer/src/
-    App.tsx                  top-level layout + wiring
-    design/                  tokens.css / tokens.ts / global.css (design source of truth)
-    components/              PixelPanel, AgentDetailPanel, CommandBar, ApprovalsPanel, MemoryPanel, …
-    CommandCenterPanel,      Michael's control surface (Terminal/Floor/Memory/Activity/Tasks/Triggers/Handbook tabs)
-    ToolWaterfall,           per-agent tool-span waterfall for the observability view
-    TasksKanban,             dependency-aware kanban board (Tasks tab)
-    ThreadsPanel,            hive message conversation viewer (Messages tab)
-    MessageQueueComposer,    park messages for a busy agent
-    scene/office/            Pixi office floor: OfficeFloor, Character, Camera, cast, pathfinding, …
-    store/ · hooks/          zustand store, event loop, PTY parser, typewriter
-    assets/                  tilesets, maps, character sheets (see ATTRIBUTION.md)
-docs/                        `logo.png`, `banner.png`, landing page (GitHub Pages → munderdiffl.in)
-docs/media/                  `og.png` (social previews) + rendered Remotion clips
-landing-remotion/            Remotion project that renders the landing page's "how it works" clips
-HIVE.md · SPEC.md · DESIGN.md   multi-agent · terminal/event · visual design
-docs/message-queue.md        who may type into an agent's terminal, and when
-```
+**The full diagrams, the module by module project structure, and the design system live in
+[`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).** They moved out of this file so it can explain
+the product rather than the codebase. Also see [`HIVE.md`](./HIVE.md) for the multi-agent design,
+[`SPEC.md`](./SPEC.md) for the terminal and event plane, and [`DESIGN.md`](./DESIGN.md) for the
+visual system.
 
 <div align="right">(<a href="#munder-difflin">↑ back to top</a>)</div>
 
-## Design system
-
-The aesthetic is **Animal Crossing × Earthbound × SNES menu UI** — pixel-snapped, chunky, friendly.
-[`DESIGN.md`](./DESIGN.md) is canonical; every component derives from its tokens. The Munder Difflin
-brand layers a **Dunder-Mifflin maroon** (`#6E1423`) and **gold** (`#F4D35E`) on top for logo and
-chrome. The 15 avatars are the cast of *The Office*, differentiated by hair/skin/shirt recipes.
-
 ## Roadmap
 
-Shipped through **v0.4.5** — twelve agent engines with BYOK keys and local LLMs, voice orchestration,
+Shipped through **v0.4.6**: a Simplified Chinese and Arabic interface with right to left support
+and self-hosted fonts, twelve agent engines with BYOK keys and local LLMs, voice orchestration,
 the hive (memory · mailboxes · blackboard · event log), Command Center with kanban and weekday
 schedules, a built-in Monaco IDE with git rails, integrations registry + secret broker,
 Slack-spawned workers, shareable hires and the Agent Gallery, observability and the circuit
 breaker, durable persistence, session resume, multi-window floors, one click updates, a Skills
-browser, a live Prerequisites check, cost reporting folded from the ledger, and semantic memory
-that works on Apple Silicon.
+browser, a live Prerequisites check, cost reporting folded from the ledger, semantic memory
+that works on Apple Silicon, and an updater that installs the build instead of pointing at it.
 Full history in [`CHANGELOG.md`](./CHANGELOG.md).
 
 Next up:
@@ -314,7 +384,7 @@ Next up:
 
 ## Contributing
 
-Contributions are welcome — this is an early prototype with a lot of surface area. Start with
+Contributions are welcome — this is pre-release software with a lot of surface area. Start with
 [`CONTRIBUTING.md`](./CONTRIBUTING.md). The short version: fork, `npm install && npm run dev`, keep
 `npm run typecheck` green, and **derive any new UI from [`DESIGN.md`](./DESIGN.md) tokens**. Good
 first areas: wiring real hook events, the add-agent flow, the config drawer, and cross-platform work.
@@ -327,6 +397,20 @@ first areas: wiring real hook events, the add-agent flow, the config drawer, and
 > [Evidence is mandatory](./CONTRIBUTING.md#evidence-is-mandatory).
 
 Questions, bugs, or want to show off your office? Join the Discord: **<https://discord.gg/SEDzP5ZPk5>**. Add your Discord handle to a PR and you'll get the `employee of the month` role when it merges.
+
+**Looking for somewhere to start?** The
+[`good first issue`](https://github.com/chaitanyagiri/munder-difflin/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+list is kept stocked with small, self contained work that has a clear finish line.
+
+**Everyone whose code is in Munder Difflin is listed in [`CONTRIBUTORS.md`](./CONTRIBUTORS.md).**
+If that is you, it is yours to point at. The list is generated from the pull requests themselves and
+updates on its own, so you appear without having to ask. It also names the contributions that are in
+`main` but that GitHub shows as closed rather than merged, because that was our mistake to record
+and not theirs to explain.
+
+<a href="./CONTRIBUTORS.md">
+  <img src="https://contrib.rocks/image?repo=chaitanyagiri/munder-difflin" alt="Munder Difflin contributors">
+</a>
 
 ## Telemetry
 
@@ -348,7 +432,7 @@ source — forks compile with no key and send nothing) are documented in
 
 The **source code** is licensed under the **MIT License** — see [`LICENSE`](./LICENSE). The MIT grant
 covers the code only; the bundled pixel art is licensed separately from LimeZu and is carved out in
-the `LICENSE` scope note. *Munder Difflin* is an affectionate parody and is not affiliated with NBC's *The Office* or
+[`LICENSE-ASSETS`](./LICENSE-ASSETS). *Munder Difflin* is an affectionate parody and is not affiliated with NBC's *The Office* or
 Dunder Mifflin.
 
 ## Acknowledgements

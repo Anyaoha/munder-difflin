@@ -104,6 +104,16 @@
         api_host: 'https://us.i.posthog.com',
         person_profiles: 'never',
         autocapture: false,
+        before_send: function (event) {
+          // PostHog fills $ip from the connection unless the event carries one.
+          // Null it here and disable the GeoIP lookup so no IP, city, postal
+          // code or lat/long is ever derived or stored for this page view.
+          if (event && event.properties) {
+            event.properties.$ip = null;
+            event.properties.$geoip_disable = true;
+          }
+          return event;
+        },
         disable_session_recording: true,
         respect_dnt: true
       });
@@ -235,6 +245,7 @@ hive adds <strong>no platform tax</strong> — you pay for the inference you’d
 free because it’s just code running on your machine. As you scale from two agents to a dozen, that gap
 compounds. (Related: <a href="/blog/do-more-with-less-model-routing/">doing more with less via model routing</a>.)</p>
 <h2 id="the-decision-table" tabindex="-1">The decision table <a class="anchor" href="#the-decision-table" aria-hidden="true">#</a></h2>
+<div class="table-scroll">
 <table>
 <thead>
 <tr>
@@ -269,6 +280,7 @@ compounds. (Related: <a href="/blog/do-more-with-less-model-routing/">doing more
 </tr>
 </tbody>
 </table>
+</div>
 <h2 id="the-bottom-line" tabindex="-1">The bottom line <a class="anchor" href="#the-bottom-line" aria-hidden="true">#</a></h2>
 <p>The 2026 cloud agent SDKs are a real, well-built answer to <em>distributed, governed, elastic</em> agent work.
 A local-first hive is the right answer to <em>private, predictable, own-your-code</em> agent work. The

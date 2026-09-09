@@ -213,6 +213,8 @@ a.tag:hover { background: var(--ink); color: var(--paper); }
   font-family: var(--disp); font-weight: 600; font-size: 1.25em; line-height: 1.45; font-style: italic; color: var(--ink);
 }
 .prose hr { border: none; border-top: 4px solid var(--rule); width: 88px; margin: 3em 0; }
+.prose .table-scroll { margin: 1.8em 0; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.prose .table-scroll > table { margin: 0; min-width: 100%; }
 .prose table { width: 100%; border-collapse: collapse; margin: 1.8em 0; font-size: 16.5px; border: 2px solid var(--rule); }
 .prose th { font-family: var(--grot); font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; text-align: left; background: var(--ink); color: var(--paper); padding: 10px 14px; }
 .prose td { padding: 10px 14px; border-top: 1px solid var(--line); }
@@ -316,6 +318,11 @@ footer.site-foot .wrap { padding: 40px 24px; }
   .prevnext { grid-template-columns: 1fr; }
   .prose p, .prose li { font-size: 18px; }
   .prose > p:first-of-type::first-letter { font-size: 3.6em; }
+  /* Let the table size to its content and scroll, rather than cramming a
+     40-character npm command into a 90px column. */
+  .prose .table-scroll > table { width: max-content; font-size: 15px; }
+  .prose .table-scroll th, .prose .table-scroll td { padding: 8px 12px; white-space: nowrap; }
+  .prose .table-scroll td code { white-space: nowrap; }
 }
 
 /* youtube placeholder (no id yet) */

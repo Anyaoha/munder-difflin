@@ -49,6 +49,16 @@
         api_host: 'https://us.i.posthog.com',
         person_profiles: 'never',
         autocapture: false,
+        before_send: function (event) {
+          // PostHog fills $ip from the connection unless the event carries one.
+          // Null it here and disable the GeoIP lookup so no IP, city, postal
+          // code or lat/long is ever derived or stored for this page view.
+          if (event && event.properties) {
+            event.properties.$ip = null;
+            event.properties.$geoip_disable = true;
+          }
+          return event;
+        },
         disable_session_recording: true,
         respect_dnt: true
       });
@@ -80,7 +90,7 @@
 <header class="page-head wrap">
   <p class="eyebrow">Tag</p>
   <h1>#Claude Code</h1>
-  <p class="lead">45 posts tagged <strong>Claude Code</strong>.</p>
+  <p class="lead">44 posts tagged <strong>Claude Code</strong>.</p>
 </header>
 <section class="wrap">
   <div class="post-grid">
@@ -225,22 +235,6 @@
     <div class="foot">
       <span class="tag kind">Guides</span>
       <a class="more" href="/blog/does-the-june-2026-agent-sdk-change-affect-munder-difflin/" aria-label="Read: Does the June 2026 Agent SDK Change Affect Munder Difflin?">Read →</a>
-    </div>
-  </div>
-</article>
-<article class="card t-guides">
-  <a class="thumb t-guides" href="/blog/how-to-install-and-use-munder-difflin/" aria-hidden="true" tabindex="-1"><img src="/blog/assets/media/how-to-install-and-use-munder-difflin/hero.png" alt="" loading="lazy" decoding="async" /></a>
-  <div class="body">
-    <div class="meta">
-      <time datetime="2026-06-05">Jun 5, 2026</time>
-      <span class="dot" aria-hidden="true"></span>
-      <span>9 min</span>
-    </div>
-    <h3><a href="/blog/how-to-install-and-use-munder-difflin/">How to Install and Use Munder Difflin</a></h3>
-    <p class="dek">Install Munder Difflin v0.4.4 on macOS, Windows, or Linux and put a hive of coding agents — on any of ten engines — to work on ambitious, long-horizon tasks, start to finish.</p>
-    <div class="foot">
-      <span class="tag kind">Guides</span>
-      <a class="more" href="/blog/how-to-install-and-use-munder-difflin/" aria-label="Read: How to Install and Use Munder Difflin">Read →</a>
     </div>
   </div>
 </article>

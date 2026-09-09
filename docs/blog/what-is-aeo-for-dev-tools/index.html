@@ -104,6 +104,16 @@
         api_host: 'https://us.i.posthog.com',
         person_profiles: 'never',
         autocapture: false,
+        before_send: function (event) {
+          // PostHog fills $ip from the connection unless the event carries one.
+          // Null it here and disable the GeoIP lookup so no IP, city, postal
+          // code or lat/long is ever derived or stored for this page view.
+          if (event && event.properties) {
+            event.properties.$ip = null;
+            event.properties.$geoip_disable = true;
+          }
+          return event;
+        },
         disable_session_recording: true,
         respect_dnt: true
       });
@@ -175,6 +185,7 @@ a <em>quoted sentence</em>. This post is the playbook we actually run, with the 
 <p><strong>SEO optimizes a page to rank so a human clicks it. AEO optimizes content to be the source an AI
 quotes in its answer — often with no click at all.</strong> They share foundations (crawlable, fast,
 well-structured pages) but diverge on intent:</p>
+<div class="table-scroll">
 <table>
 <thead>
 <tr>
@@ -211,6 +222,7 @@ well-structured pages) but diverge on intent:</p>
 </tr>
 </tbody>
 </table>
+</div>
 <p>The good news: you don’t choose between them. AEO is mostly SEO done with a tighter discipline —
 clearer answers, stronger structure, honest facts. A page that an LLM can confidently quote is also a
 page Google’s AI Overviews and traditional results reward.</p>

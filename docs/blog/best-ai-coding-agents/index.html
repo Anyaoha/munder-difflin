@@ -104,6 +104,16 @@
         api_host: 'https://us.i.posthog.com',
         person_profiles: 'never',
         autocapture: false,
+        before_send: function (event) {
+          // PostHog fills $ip from the connection unless the event carries one.
+          // Null it here and disable the GeoIP lookup so no IP, city, postal
+          // code or lat/long is ever derived or stored for this page view.
+          if (event && event.properties) {
+            event.properties.$ip = null;
+            event.properties.$geoip_disable = true;
+          }
+          return event;
+        },
         disable_session_recording: true,
         respect_dnt: true
       });
@@ -183,6 +193,7 @@ shipping bigger work. The “one tool wins everything” framing is over.</p>
 <blockquote>
 <p>Pricing/features change monthly — treat as 2026 reference points; verify on each tool’s site.</p>
 </blockquote>
+<div class="table-scroll">
 <table>
 <thead>
 <tr>
@@ -238,6 +249,7 @@ shipping bigger work. The “one tool wins everything” framing is over.</p>
 </tr>
 </tbody>
 </table>
+</div>
 <figure class="fig fig-inline"><img src="/blog/assets/media/best-ai-coding-agents/note-1.png" alt="Hand-drawn sketch from “The Best AI Coding Agents in 2026: A Field Guide”" loading="lazy" decoding="async" /></figure>
 <h2 id="the-tools-fairly" tabindex="-1">The tools, fairly <a class="anchor" href="#the-tools-fairly" aria-hidden="true">#</a></h2>
 <p><strong>Cursor</strong> — a dedicated AI-first IDE that leads on in-editor agent ergonomics; reference pricing runs

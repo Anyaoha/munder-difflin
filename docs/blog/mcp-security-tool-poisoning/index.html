@@ -103,6 +103,16 @@
         api_host: 'https://us.i.posthog.com',
         person_profiles: 'never',
         autocapture: false,
+        before_send: function (event) {
+          // PostHog fills $ip from the connection unless the event carries one.
+          // Null it here and disable the GeoIP lookup so no IP, city, postal
+          // code or lat/long is ever derived or stored for this page view.
+          if (event && event.properties) {
+            event.properties.$ip = null;
+            event.properties.$geoip_disable = true;
+          }
+          return event;
+        },
         disable_session_recording: true,
         respect_dnt: true
       });
@@ -293,7 +303,7 @@ execution. Do that and MCP is what it should be: a powerful, <em>bounded</em> wa
 
   <footer class="post-foot wrap"><div class="prevnext">
       <a class="pn prev" href="/blog/multi-agent-orchestration-patterns/"><span class="k">← Older</span><span class="t">Multi-Agent Orchestration Patterns: Which Topology, and When</span></a>
-      <a class="pn next" href="/blog/how-to-install-and-use-munder-difflin/"><span class="k">Newer →</span><span class="t">How to Install and Use Munder Difflin</span></a>
+      <a class="pn next" href="/blog/how-to-install-and-use-munder-difflin/"><span class="k">Newer →</span><span class="t">How to Install and Use Munder Difflin: A Beginner&#39;s Guide</span></a>
     </div>
     <section class="related">
       <h2>Related in Guides</h2>

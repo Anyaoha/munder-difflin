@@ -90,6 +90,16 @@
         api_host: 'https://us.i.posthog.com',
         person_profiles: 'never',
         autocapture: false,
+        before_send: function (event) {
+          // PostHog fills $ip from the connection unless the event carries one.
+          // Null it here and disable the GeoIP lookup so no IP, city, postal
+          // code or lat/long is ever derived or stored for this page view.
+          if (event && event.properties) {
+            event.properties.$ip = null;
+            event.properties.$geoip_disable = true;
+          }
+          return event;
+        },
         disable_session_recording: true,
         respect_dnt: true
       });
@@ -169,6 +179,7 @@ We’ll fold it into the verdict.</p>
 <h2 id="the-comparison" tabindex="-1">The comparison <a class="anchor" href="#the-comparison" aria-hidden="true">#</a></h2>
 <p>Scored as ●●● strong · ●●○ partial · ●○○ minimal, to the best of our knowledge at the time of writing.
 Tools evolve — verify against each project’s current docs.</p>
+<div class="table-scroll">
 <table>
 <thead>
 <tr>
@@ -231,6 +242,7 @@ Tools evolve — verify against each project’s current docs.</p>
 </tr>
 </tbody>
 </table>
+</div>
 <p>Read the table as a fit, not a scoreboard. The tools clustered on the left optimize for <strong>control and
 simplicity</strong>; Munder Difflin optimizes for <strong>coordination</strong> (memory + messaging + a routing
 orchestrator). Both are legitimate.</p>

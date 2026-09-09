@@ -107,6 +107,16 @@
         api_host: 'https://us.i.posthog.com',
         person_profiles: 'never',
         autocapture: false,
+        before_send: function (event) {
+          // PostHog fills $ip from the connection unless the event carries one.
+          // Null it here and disable the GeoIP lookup so no IP, city, postal
+          // code or lat/long is ever derived or stored for this page view.
+          if (event && event.properties) {
+            event.properties.$ip = null;
+            event.properties.$geoip_disable = true;
+          }
+          return event;
+        },
         disable_session_recording: true,
         respect_dnt: true
       });
@@ -195,6 +205,7 @@
 <figure class="fig fig-inline"><img src="/blog/assets/media/github-copilot-cli-vs-claude-code-for-hive-work/note-2.png" alt="Hand-drawn sketch from “GitHub Copilot CLI vs Claude Code as Hive Workers”" loading="lazy" decoding="async" /></figure>
 <h2 id="verdict-dont-pick-mix" tabindex="-1">Verdict: don’t pick — mix <a class="anchor" href="#verdict-dont-pick-mix" aria-hidden="true">#</a></h2>
 <p>The comparison table writes itself once you frame it as lifecycle:</p>
+<div class="table-scroll">
 <table>
 <thead>
 <tr>
@@ -236,6 +247,7 @@
 </tr>
 </tbody>
 </table>
+</div>
 <p>Because Munder Difflin makes the engine a per-hire choice, this isn’t an either/or. The pattern that works: <strong>Claude Code as the orchestrator and your long-lived workers</strong> — the agents that need to receive messages, hold context across turns, and run under hook-driven approval gates — and <strong>Copilot CLI workers for burst tasks</strong> the orchestrator dispatches: a scoped refactor, a test-writing pass, a one-shot investigation. Different engines for different roles is the general lesson of mixed fleets, and it also spreads cost across two subscriptions you likely already pay for.</p>
 <p>For everything else in the release — including the built-in Monaco IDE — see the <a href="/blog/launching-munder-difflin-v0-3-3/">v0.3.3 launch post</a>.</p>
 <h2 id="try-both-on-one-floor" tabindex="-1">Try both on one floor <a class="anchor" href="#try-both-on-one-floor" aria-hidden="true">#</a></h2>

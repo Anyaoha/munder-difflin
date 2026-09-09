@@ -90,6 +90,16 @@
         api_host: 'https://us.i.posthog.com',
         person_profiles: 'never',
         autocapture: false,
+        before_send: function (event) {
+          // PostHog fills $ip from the connection unless the event carries one.
+          // Null it here and disable the GeoIP lookup so no IP, city, postal
+          // code or lat/long is ever derived or stored for this page view.
+          if (event && event.properties) {
+            event.properties.$ip = null;
+            event.properties.$geoip_disable = true;
+          }
+          return event;
+        },
         disable_session_recording: true,
         respect_dnt: true
       });
@@ -187,6 +197,7 @@ instead of routing through you.</li>
 <figure class="fig fig-inline"><img src="/blog/assets/media/from-one-terminal-to-a-team/note-2.png" alt="Hand-drawn sketch from “From One Terminal to a Team: Scaling Your Claude Code Workflow”" loading="lazy" decoding="async" /></figure>
 <h2 id="the-before-and-after" tabindex="-1">The before-and-after <a class="anchor" href="#the-before-and-after" aria-hidden="true">#</a></h2>
 <p>The same morning, two ways:</p>
+<div class="table-scroll">
 <table>
 <thead>
 <tr>
@@ -228,6 +239,7 @@ instead of routing through you.</li>
 </tr>
 </tbody>
 </table>
+</div>
 <p>Nothing about the <em>agents</em> changed — they’re the same Claude Code sessions. What changed is the layer
 around them, and that’s what moves you from operator to manager.</p>
 <h2 id="knowing-when-to-make-the-jump" tabindex="-1">Knowing when to make the jump <a class="anchor" href="#knowing-when-to-make-the-jump" aria-hidden="true">#</a></h2>

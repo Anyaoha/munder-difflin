@@ -106,6 +106,16 @@
         api_host: 'https://us.i.posthog.com',
         person_profiles: 'never',
         autocapture: false,
+        before_send: function (event) {
+          // PostHog fills $ip from the connection unless the event carries one.
+          // Null it here and disable the GeoIP lookup so no IP, city, postal
+          // code or lat/long is ever derived or stored for this page view.
+          if (event && event.properties) {
+            event.properties.$ip = null;
+            event.properties.$geoip_disable = true;
+          }
+          return event;
+        },
         disable_session_recording: true,
         respect_dnt: true
       });
@@ -195,6 +205,7 @@ ceiling on a dedicated box with <code>sudo sysctl iogpu.wired_limit_mb=&lt;MB&gt
 model. A practical rule: <strong>plan for the model to use about two-thirds of your unified memory</strong> and leave
 the rest for context and the OS.</p>
 <p>Current Mac Mini lineup and what each tier comfortably runs (4-bit quant):</p>
+<div class="table-scroll">
 <table>
 <thead>
 <tr>
@@ -237,11 +248,13 @@ the rest for context and the OS.</p>
 </tr>
 </tbody>
 </table>
+</div>
 <p><em>(Newer Mac Mini chips raise bandwidth and the memory ceiling, but the same “model ≈ two-thirds of
 unified memory” sizing rule carries over — pick the tier by the model size you want.)</em></p>
 <p>Here’s a concrete pick for each tier. Pull these with Ollama (LM Studio carries the same models as
 GGUF/MLX): <code>ollama pull &lt;tag&gt;</code>, then reference the model as <code>local/&lt;tag&gt;</code> in OpenCode or <code>ollama/&lt;tag&gt;</code> in
 Crush (more on that in Step 3).</p>
+<div class="table-scroll">
 <table>
 <thead>
 <tr>
@@ -290,6 +303,7 @@ Crush (more on that in Step 3).</p>
 </tr>
 </tbody>
 </table>
+</div>
 <p>These picks are drawn from the model families our open-source model catalog tracks — the single source of
 truth we keep version-current.
 The companion guide, <a href="/blog/run-munder-difflin-on-open-models/">running Munder Difflin on open

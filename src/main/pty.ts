@@ -6,7 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { ensureKilled, hardKillTree } from './procKill';
 import { expandTilde } from './fs';
 import { buildPtyEnv } from './ptyEnv';
-import { captureFromLoginShell, userShellPath } from './shellEnv';
+import { captureFromLoginShell, isSafeCommandName, userShellPath } from './shellEnv';
 
 /** APPEND the hive's bundled-node dir (`<HIVE_ROOT>/bin/runtime`, which holds a
  *  shim literally named `node`) to a child's PATH.
@@ -29,6 +29,20 @@ export function withHiveRuntimeFallback(path: string, hiveRoot?: string): string
   return [...entries, dir].join(delimiter);
 }
 
+/** How much trailing PTY output to retain per session for crash diagnostics.
+ *  Big enough for a stack trace or a panic banner, small enough that N idle
+ *  agents cost kilobytes, not megabytes. */
+const TAIL_MAX = 8192;
+
+/** What the exit handler is told about a process that just died. Passed by
+ *  value because the session is deleted from the map before the handler runs. */
+export interface PtyExitInfo {
+  signal?: number;
+  tail?: string;
+  command?: string;
+  cwd?: string;
+}
+
 interface PtySession {
   id: string;
   proc: pty.IPty;
@@ -46,6 +60,13 @@ interface PtySession {
    *  file) and the idle handshake that gates god's PTY nudge (never type into a
    *  PTY that produced output in the last few seconds = mid-stream). */
   lastOutputAt: number;
+  /** A bounded ring of the most recent output bytes, kept ONLY so an abnormal
+   *  exit can say what was on screen when the process died. A provider that
+   *  crashes on startup (Bun SIGILL, a missing shared library, an auth failure)
+   *  prints its explanation and vanishes; without this the explanation exists
+   *  nowhere but a terminal pane the operator may never have been looking at.
+   *  Capped at TAIL_MAX so a chatty agent cannot grow it without bound. */
+  tail: string;
   /** True after the child has emitted at least one frame. Automation waits for
    *  this before typing, so startup prompts cannot outrun the TUI subscription. */
   hasOutput: boolean;
@@ -309,7 +330,8 @@ export class PtyManager {
    *  externally), so the main process can run the SAME lifecycle teardown
    *  (archive, worktree removal, map cleanup) that the explicit kill() path
    *  runs. Best-effort — set once by the main process. */
-  private exitHandler: ((id: string, exitCode?: number) => void) | null = null;
+  private exitHandler:
+    ((id: string, exitCode?: number, info?: PtyExitInfo) => void) | null = null;
 
   /** The default/fallback output sink — set to the PRIMARY window. Used only for
    *  sessions with no recorded owner; owned sessions route to their owner. */
@@ -345,7 +367,9 @@ export class PtyManager {
    *  onExit after the session is cleaned up. The exit code is forwarded so the
    *  handler can distinguish a clean exit (e.g. a successful first-time CLI
    *  install → auto restart-and-continue) from a crash. */
-  setExitHandler(handler: (id: string, exitCode?: number) => void): void {
+  setExitHandler(
+    handler: (id: string, exitCode?: number, info?: PtyExitInfo) => void
+  ): void {
     this.exitHandler = handler;
   }
 
@@ -409,8 +433,12 @@ export class PtyManager {
     // Already an absolute/relative path (Unix `/` or Windows `\`) — pass through;
     // `found` reflects whether that path actually exists on disk.
     if (command.includes('/') || command.includes('\\')) return { path: command, found: existsSync(command) };
+    // Only a plain command name is resolved against PATH. Anything else is
+    // refused here so it never reaches `which`/`where`; `found:false` makes the
+    // caller treat it as missing.
+    if (!isSafeCommandName(command)) return { path: command, found: false };
     if (process.platform === 'win32') {
-      // `where` is the Windows equivalent of `which`; runs via cmd.exe (shell:true).
+      // `where` is the Windows equivalent of `which`.
       // It can return MULTIPLE matches in PATH order; the first is often an
       // EXTENSIONLESS shim (bare `claude`). Skip extensionless hits and take
       // the first PATHEXT-eligible one (.CMD/.BAT/.EXE/…). NOTE: even .CMD/.BAT
@@ -418,7 +446,9 @@ export class PtyManager {
       // spawn() either decodes the shim to its real interpreter or, failing that,
       // routes it through `cmd.exe /c` (see resolveWindowsShimSpawn below).
       try {
-        const res = spawnSync('where', [command], { encoding: 'utf8', timeout: 3000, shell: true });
+        // No `shell:true`: `command` is proven metacharacter-free above, and
+        // running `where` directly keeps cmd.exe from re-parsing the argument.
+        const res = spawnSync('where', [command], { encoding: 'utf8', timeout: 3000 });
         const lines = (res.stdout ?? '').trim().split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
         const pathExts = (process.env.PATHEXT ?? '.COM;.EXE;.BAT;.CMD')
           .split(';').map((e) => e.trim().toUpperCase()).filter(Boolean);
@@ -661,6 +691,7 @@ export class PtyManager {
         command: resolved,
         lastOutputAt: Date.now(),
         hasOutput: false,
+        tail: '',
         owner
       };
       this.sessions.set(opts.id, session);
@@ -671,6 +702,9 @@ export class PtyManager {
         if (this.sessions.get(opts.id) !== session) return;
         session.hasOutput = true;
         session.lastOutputAt = Date.now();
+        // Keep only the trailing window; slice AFTER appending so a single
+        // oversized write still leaves us its end (the part that explains a death).
+        session.tail = (session.tail + data).slice(-TAIL_MAX);
         // Route to the session's owner window (multi-window owner routing).
         this.safeSend(`pty:data:${opts.id}`, data, session.owner);
       });
@@ -682,7 +716,21 @@ export class PtyManager {
         this.sessions.delete(opts.id);
         // Natural exit must run the same lifecycle teardown as an explicit kill.
         // Guarded so a teardown error can never crash node-pty's exit callback.
-        try { this.exitHandler?.(opts.id, exitCode); } catch { /* never throw out of onExit */ }
+        // `signal` is forwarded, not dropped: a provider killed by SIGILL/SIGSEGV
+        // exits with code 0 and a non-zero signal, so an exitCode-only handler
+        // cannot tell a crash from a clean finish. `tail` carries whatever the
+        // process printed on its way out.
+        // The session is already out of `sessions` by now, so anything the
+        // handler needs about the dead process must be handed to it here —
+        // it cannot look the session up any more.
+        try {
+          this.exitHandler?.(opts.id, exitCode, {
+            signal,
+            tail: session.tail,
+            command: session.command,
+            cwd: session.cwd
+          });
+        } catch { /* never throw out of onExit */ }
       });
 
       return { ok: true };

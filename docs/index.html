@@ -4,14 +4,14 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Munder Difflin — Agent harness to run an office of your clones</title>
-<meta name="description" content="Free, open source and performant multi-agent harness, works with your existing subscriptions (uses hourly limits). It wraps the CLI agents you already use — Claude Code, Codex, Copilot and 9 more — and runs an office of your clones on your own machine." />
+<meta name="description" content="Free, open source and performant multi-agent harness, works with your existing subscriptions (uses hourly limits). It wraps the CLI agents you already use — Claude Code, Codex, Copilot and 9 more — and runs an office of your clones on your own machine. The interface runs in English, Simplified Chinese and Arabic." />
 <link rel="canonical" href="https://munderdiffl.in/" />
 <link rel="icon" type="image/svg+xml" href="./logo.svg" />
 <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png" />
 <link rel="icon" type="image/png" sizes="512x512" href="./logo.png" />
 <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
 <meta property="og:title" content="Munder Difflin — Agent harness to run an office of your clones" />
-<meta property="og:description" content="Free, open source and performant multi-agent harness, works with your existing subscriptions (uses hourly limits). It wraps the CLI agents you already use — Claude Code, Codex, Copilot and 9 more — and runs an office of your clones on your own machine." />
+<meta property="og:description" content="Free, open source and performant multi-agent harness, works with your existing subscriptions (uses hourly limits). It wraps the CLI agents you already use — Claude Code, Codex, Copilot and 9 more — and runs an office of your clones on your own machine. The interface runs in English, Simplified Chinese and Arabic." />
 <meta property="og:image" content="https://munderdiffl.in/media/og.png" />
 <meta property="og:image:type" content="image/png" />
 <meta property="og:image:width" content="2400" />
@@ -21,7 +21,7 @@
 <meta property="og:type" content="website" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="Munder Difflin — Agent harness to run an office of your clones" />
-<meta name="twitter:description" content="Free, open source and performant multi-agent harness, works with your existing subscriptions (uses hourly limits). It wraps the CLI agents you already use — Claude Code, Codex, Copilot and 9 more — and runs an office of your clones on your own machine." />
+<meta name="twitter:description" content="Free, open source and performant multi-agent harness, works with your existing subscriptions (uses hourly limits). It wraps the CLI agents you already use — Claude Code, Codex, Copilot and 9 more — and runs an office of your clones on your own machine. The interface runs in English, Simplified Chinese and Arabic." />
 <meta name="twitter:image" content="https://munderdiffl.in/media/og.png" />
 <meta name="twitter:image:alt" content="Munder Difflin — clones for you and your team, working 24/7. Free, open-source multi-agent harness." />
 <meta name="theme-color" content="#FFF8E7" />
@@ -35,7 +35,8 @@
   "url": "https://munderdiffl.in/",
   "applicationCategory": "DeveloperApplication",
   "operatingSystem": "macOS, Windows, Linux",
-  "softwareVersion": "0.4.5",
+  "softwareVersion": "0.4.6",
+  "inLanguage": ["en", "zh-Hans", "ar"],
   "downloadUrl": "https://github.com/chaitanyagiri/munder-difflin/releases/latest",
   "softwareHelp": "https://github.com/chaitanyagiri/munder-difflin#readme",
   "license": "https://github.com/chaitanyagiri/munder-difflin/blob/main/LICENSE",
@@ -427,6 +428,23 @@
   @keyframes blink { 50% { opacity: 0.25; } }
   .hero h1 .u { color: var(--accent); }
   .hero .lead { margin: 22px 0 32px; }
+  /* One release note under the hero CTAs. The pill is the .badge idiom, but the
+     line carries a sentence, so it wraps as a block instead of an inline pill. */
+  .rel-note { margin-top: 18px; max-width: 640px; font-size: 0.9rem; line-height: 1.6; color: var(--muted); }
+  .rel-note .rel-tag {
+    display: inline-block; margin-right: 8px; vertical-align: 1px;
+    font-family: var(--font-mono); font-size: 0.7rem; font-weight: 600; letter-spacing: 0.1em;
+    color: var(--accent); background: var(--accent-soft);
+    border: 1px solid var(--accent-line); border-radius: 999px; padding: 3px 10px;
+  }
+  .rel-note b { color: var(--ink); font-weight: 600; }
+  /* Chinese and Arabic glyphs are not in the page's webfonts, and no new font
+     host is being added for three words. These are the faces every OS we ship
+     on already has, named so the browser picks a real one instead of a default. */
+  .i18n-face {
+    font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC",
+                 "Geeza Pro", "Noto Naskh Arabic", var(--font-body);
+  }
   .trust {
     display: flex; flex-wrap: wrap; gap: 10px 24px; margin-top: 28px;
     font-family: var(--font-mono); font-size: 0.8rem; color: var(--faint);
@@ -585,6 +603,13 @@
     display: block; border-top: 1px solid var(--border); margin-top: 12px; padding-top: 10px;
     font-family: var(--font-mono); font-size: 0.78rem; color: var(--accent);
   }
+  /* ------- languages (0.4.6) ------- */
+  .langs { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; margin-top: 40px; text-align: left; }
+  .lang { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px 20px; }
+  .lang-name { display: block; font-size: 1.35rem; font-weight: 600; color: var(--ink); line-height: 1.35; }
+  .lang-sub { display: block; margin-top: 10px; font-family: var(--font-mono); font-size: 0.78rem; color: var(--faint); }
+  .lang-note { max-width: 720px; margin: 30px auto 0; font-size: 0.9rem; line-height: 1.65; color: var(--muted); }
+
   .cli-bar {
     margin-top: 44px; background: var(--surface); border: 1px solid var(--border);
     border-radius: var(--radius); padding: 30px clamp(18px, 4vw, 40px); text-align: center;
@@ -621,6 +646,24 @@
   .clp span { font-family: var(--font-mono); font-size: 0.66rem; letter-spacing: 0.04em; color: var(--muted); text-align: center; line-height: 1.3; }
   .clp.more { border-style: dashed; color: var(--accent); }
   .clp.more span { color: var(--accent); }
+
+  /* Blog discovery on phones. The nav's text links — Blog among them — are
+     hidden under 800px, which left the footer as the only way in. This strip
+     sits right under the provider grid and never renders on desktop. */
+  .blog-mob { display: none; }
+  @media (max-width: 800px) {
+    .blog-mob {
+      display: block; margin-top: 22px; padding: 16px 14px 18px;
+      border: 1px solid var(--accent-line); border-radius: var(--radius-sm);
+      background: var(--accent-soft); text-align: center;
+    }
+    .blog-mob .bm-k {
+      display: block; font-family: var(--font-mono); font-size: 0.6rem;
+      letter-spacing: 0.12em; color: var(--accent); margin: 0 0 8px;
+    }
+    .cli-bar .blog-mob p { font-size: 0.85rem; max-width: 34ch; margin: 0 auto 14px; }
+    .blog-mob .btn { width: 100%; justify-content: center; }
+  }
 
   /* ------- capabilities: node workflow diagram + home-screen shot ------- */
   /* the section above ends in cards; pull this one closer */
@@ -1125,6 +1168,13 @@
         <div class="clp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M23.922 16.997C23.061 18.492 18.063 22.02 12 22.02 5.937 22.02.939 18.492.078 16.997A.641.641 0 0 1 0 16.741v-2.869a.883.883 0 0 1 .053-.22c.372-.935 1.347-2.292 2.605-2.656.167-.429.414-1.055.644-1.517a10.098 10.098 0 0 1-.052-1.086c0-1.331.282-2.499 1.132-3.368.397-.406.89-.717 1.474-.952C7.255 2.937 9.248 1.98 11.978 1.98c2.731 0 4.767.957 6.166 2.093.584.235 1.077.546 1.474.952.85.869 1.132 2.037 1.132 3.368 0 .368-.014.733-.052 1.086.23.462.477 1.088.644 1.517 1.258.364 2.233 1.721 2.605 2.656a.841.841 0 0 1 .053.22v2.869a.641.641 0 0 1-.078.256Zm-11.75-5.992h-.344a4.359 4.359 0 0 1-.355.508c-.77.947-1.918 1.492-3.508 1.492-1.725 0-2.989-.359-3.782-1.259a2.137 2.137 0 0 1-.085-.104L4 11.746v6.585c1.435.779 4.514 2.179 8 2.179 3.486 0 6.565-1.4 8-2.179v-6.585l-.098-.104s-.033.045-.085.104c-.793.9-2.057 1.259-3.782 1.259-1.59 0-2.738-.545-3.508-1.492a4.359 4.359 0 0 1-.355-.508Zm2.328 3.25c.549 0 1 .451 1 1v2c0 .549-.451 1-1 1-.549 0-1-.451-1-1v-2c0-.549.451-1 1-1Zm-5 0c.549 0 1 .451 1 1v2c0 .549-.451 1-1 1-.549 0-1-.451-1-1v-2c0-.549.451-1 1-1Zm3.313-6.185c.136 1.057.403 1.913.878 2.497.442.544 1.134.938 2.344.938 1.573 0 2.292-.337 2.657-.751.384-.435.558-1.15.558-2.361 0-1.14-.243-1.847-.705-2.319-.477-.488-1.319-.862-2.824-1.025-1.487-.161-2.192.138-2.533.529-.269.307-.437.808-.438 1.578v.021c0 .265.021.562.063.893Zm-1.626 0c.042-.331.063-.628.063-.894v-.02c-.001-.77-.169-1.271-.438-1.578-.341-.391-1.046-.69-2.533-.529-1.505.163-2.347.537-2.824 1.025-.462.472-.705 1.179-.705 2.319 0 1.211.175 1.926.558 2.361.365.414 1.084.751 2.657.751 1.21 0 1.902-.394 2.344-.938.475-.584.742-1.44.878-2.497Z" fill="currentColor"/></svg><span>Copilot</span></div>
         <div class="clp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2.6 19.1 14.4 12.3 14.4 15.6 21.1 12.9 22.4 9.6 15.7 6 19.4Z" fill="currentColor"/></svg><span>Cursor</span></div>
       </div>
+
+      <div class="blog-mob">
+        <span class="bm-k">FROM THE BLOG</span>
+        <p>Setup guides, agent postmortems, and how we build with a hive of clones.</p>
+        <a class="btn" href="/blog/">Read the blog →</a>
+      </div>
+
         <figure class="cap-shot rv">
           <video class="hero-video" src="./media/hero-demo.mp4?v=2" width="2300" height="1440"
             autoplay muted loop playsinline
@@ -1530,6 +1580,38 @@
   </div>
 </section>
 
+<!-- ══════════════ LANGUAGES ══════════════ -->
+<section id="languages">
+  <div class="wrap center">
+    <span class="kicker">NEW IN 0.4.6</span>
+    <h2>Not just in English.</h2>
+    <p class="lead" style="margin:18px auto 0">
+      The whole interface is translated, not only the menus. You pick the language in Settings and the
+      app switches there and then. English stays the default, so nothing moves until you move it.
+    </p>
+    <div class="langs">
+      <div class="lang rv">
+        <span class="lang-name" lang="en">English</span>
+        <span class="lang-sub">the default</span>
+      </div>
+      <div class="lang rv">
+        <span class="lang-name i18n-face" lang="zh-CN">简体中文</span>
+        <span class="lang-sub">simplified chinese</span>
+      </div>
+      <div class="lang rv">
+        <span class="lang-name i18n-face" lang="ar" dir="rtl">العربية</span>
+        <span class="lang-sub">arabic · right to left</span>
+      </div>
+    </div>
+    <p class="lang-note">
+      The fonts ship inside the app. It never fetches typography from Google, so the interface looks the
+      same on a machine that cannot reach those hosts. Arabic is fully translated and the app flips to
+      right to left when you choose it. Some screens still need their padding and icons mirrored, and
+      that is the next piece of work.
+    </p>
+  </div>
+</section>
+
 <!-- ══════════════ SECURITY ══════════════ -->
 <section id="security" class="sec-dark">
   <div class="wrap center">
@@ -1763,6 +1845,12 @@
         subscriptions or API keys.</p>
       </details>
       <details class="rv">
+        <summary>What language is the app in?</summary>
+        <p>English, Simplified Chinese, or Arabic. You choose it in Settings and the whole
+        interface follows, Arabic included, which flips the app to right to left. The fonts
+        are inside the app, so it never calls out to a font host to draw its own text.</p>
+      </details>
+      <details class="rv">
         <summary>Does my laptop need to stay on?</summary>
         <p>While your clone works locally, yes. With Cloud + Network, your clone
         runs 24/7 on a dedicated sandbox VM — it keeps working with the lid closed,
@@ -1797,14 +1885,6 @@
       <div class="btn-row">
         <a class="btn primary lg" data-download href="https://github.com/chaitanyagiri/munder-difflin/releases/latest"><span class="ic">⤓</span> Download Free</a>
         <a class="btn lg" data-gh-stars href="https://github.com/chaitanyagiri/munder-difflin" target="_blank" rel="noopener"><span class="ic">★</span> Star on GitHub<span class="star-count"></span></a>
-      </div>
-      <div class="mono-hint">macOS · Windows · Linux — free for individuals · org licenses for teams</div>
-      <!-- v0.4.5: the headline belongs where people decide to download. 0.4.4 named
-           the Windows fix; 0.4.5 names the three things that were quietly wrong for
-           people already running it, which is what would stop them updating. -->
-      <div class="mono-hint" style="margin-top:6px">
-        <strong>New in v0.4.5</strong> · accurate cost reporting, semantic memory on Apple Silicon, reliable agent messaging ·
-        <a href="https://github.com/chaitanyagiri/munder-difflin/releases/latest">release notes</a>
       </div>
     </div>
   </div>
@@ -2901,7 +2981,7 @@
   // first; "download without paying" keeps the download genuinely ungated.
   (function () {
     var REPO = 'chaitanyagiri/munder-difflin';
-    var REL = '0.4.5'; // fallback version; live links are resolved from the GitHub API below
+    var REL = '0.4.6'; // fallback version; live links are resolved from the GitHub API below
     var BASE = 'https://github.com/' + REPO + '/releases/latest/download/';
     var PAY_URL = 'https://rzp.io/rzp/munder-difflin'; // Razorpay Payment Page — Munder Difflin: Founders' Wall
     var PLATFORMS = [
@@ -3134,7 +3214,17 @@
         person_profiles: 'never',
         autocapture: false,
         disable_session_recording: true,
-        respect_dnt: true
+        respect_dnt: true,
+        before_send: function (event) {
+          // PostHog fills $ip from the connection unless the event carries one.
+          // Null it here and disable the GeoIP lookup so no IP, city, postal
+          // code or lat/long is ever derived or stored for this page view.
+          if (event && event.properties) {
+            event.properties.$ip = null;
+            event.properties.$geoip_disable = true;
+          }
+          return event;
+        }
       });
       document.addEventListener('click', function (ev) {
         var a = ev.target && ev.target.closest ? ev.target.closest('a[data-download], a[download]') : null;
